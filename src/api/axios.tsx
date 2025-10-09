@@ -3,7 +3,7 @@ dotenv.config()
 import axios from 'axios';
 
 export const axiosInstance = axios.create({
-  baseURL: process.env.BACKEND_URL, 
+  baseURL: "https://kpi-tracking-back.onrender.com/api", 
   headers: {
     'Content-Type': 'application/json',
   },
