@@ -1,7 +1,9 @@
+import dotenv from "dotenv"
+dotenv.config()
 import axios from 'axios';
 
 export const axiosInstance = axios.create({
-  baseURL: 'http://10.63.194.166:3000/api',
+  baseURL: process.env.BACKEND_URL, 
   headers: {
     'Content-Type': 'application/json',
   },
