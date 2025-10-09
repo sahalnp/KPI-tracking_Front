@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-    Building2,
     User,
     Save,
     Star,
@@ -9,6 +8,8 @@ import {
     Users,
     ClipboardList,
     AlertCircle,
+    MapPinIcon,
+    UserIcon,
 } from "lucide-react";
 import {
     Card,
@@ -16,25 +17,26 @@ import {
     CardDescription,
     CardHeader,
     CardTitle,
-} from "../ui/card";
-import { Button } from "../ui/button";
-import { Label } from "../ui/label";
-import { Textarea } from "../ui/textarea";
+} from "@/components/ui/card";
+
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "../ui/select";
-import { Badge } from "../ui/badge";
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { axiosInstance } from "@/api/axios";
 import { useDispatch } from "react-redux";
 import { clearUser } from "@/features/UserSlice";
-import { logoutSupervisor } from "@/lib/logoutApi";
-import { LoadingSpinner } from "../ui/spinner";
+import { LoadingSpinner } from "@/components/ui/spinner";
 import { pushActivity } from "@/lib/setRecentActivity";
+import { logoutOwner } from "@/lib/logoutApi";
 
 interface ScoreData {
     [key: string]: {
@@ -43,7 +45,7 @@ interface ScoreData {
     };
 }
 
-export function StaffScoringForm() {
+export function OnwerScoringForm() {
     const [selectedStaff, setSelectedStaff] = useState("");
     const [staff, setStaff] = useState<any[]>([]);
     const [scores, setScores] = useState<ScoreData>({});
@@ -65,15 +67,13 @@ export function StaffScoringForm() {
         setLoading(true);
         const fetchData = async () => {
             try {
-                const res = await axiosInstance.get(
-                    "/supervisor/staff-scoring"
-                );
+                const res = await axiosInstance.get("/owner/staff-scoring");
                 setStaff(res.data.staffs);
             } catch (err: any) {
                 if (err.response?.status === 401) {
                     localStorage.removeItem("accesstoken");
                     localStorage.removeItem("refreshtoken");
-                    await logoutSupervisor();
+                    await logoutOwner();
                     dispatch(clearUser());
                     toast.error("Session Expired. Please login again");
                 } else {
@@ -96,14 +96,14 @@ export function StaffScoringForm() {
         setKpisLoading(true);
         const fetchKpi = async () => {
             try {
-                const res = await axiosInstance.get("/supervisor/getKpis");
+                const res = await axiosInstance.get("/owner/getKpis");
                 console.log("KPI Response:", res.data.kpis); // Debug log
                 setKpis(res.data.kpis.kpis || []);
             } catch (err: any) {
                 if (err.response?.status === 401) {
                     localStorage.removeItem("accesstoken");
                     localStorage.removeItem("refreshtoken");
-                    await logoutSupervisor();
+                    await logoutOwner();
                     dispatch(clearUser());
                     toast.error("Session Expired. Please login again");
                 } else {
@@ -170,7 +170,7 @@ export function StaffScoringForm() {
                 })
             );
 
-            await axiosInstance.post("/supervisor/submit-score", {
+            await axiosInstance.post("/owner/submit-score", {
                 staffId: selectedStaff,
                 scores: scoresArray,
             });
@@ -185,7 +185,7 @@ export function StaffScoringForm() {
             if (error.response?.status === 401) {
                 localStorage.removeItem("accesstoken");
                 localStorage.removeItem("refreshtoken");
-                await logoutSupervisor();
+                await logoutOwner();
                 dispatch(clearUser());
                 toast.error("Session Expired. Please login again");
             } else {
@@ -299,7 +299,7 @@ export function StaffScoringForm() {
                                                         {staffMember.name}
                                                     </span>
                                                     <span className="text-xs text-gray-500">
-                                                        {staffMember.section}
+                                                        {staffMember.role}
                                                     </span>
                                                 </div>
                                             </SelectItem>
@@ -565,15 +565,31 @@ export function StaffScoringForm() {
                                             {selectedStaffMember?.name}
                                         </span>
                                     </div>
+                                    {/* Role */}
                                     <div className="flex items-center gap-2 text-sm">
-                                        <Building2 className="w-4 h-4 text-gray-500" />
+                                        <UserIcon className="w-4 h-4 text-gray-500" />
                                         <span className="text-gray-500">
-                                            Section:
+                                            Role:
                                         </span>
                                         <span className="font-medium">
-                                            {selectedStaffMember?.section}
+                                            {selectedStaffMember?.role}
                                         </span>
                                     </div>
+
+                                    {/* Section (only if not null) */}
+                                    {selectedStaffMember?.section && (
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <MapPinIcon className="w-4 h-4 text-gray-500" />{" "}
+                                            {/* changed icon */}
+                                            <span className="text-gray-500">
+                                                Section:
+                                            </span>
+                                            <span className="font-medium">
+                                                {selectedStaffMember.section}
+                                            </span>
+                                        </div>
+                                    )}
+
                                     <div className="flex items-center gap-2 text-sm">
                                         <Phone className="w-4 h-4 text-gray-500" />
                                         <span className="text-gray-500">

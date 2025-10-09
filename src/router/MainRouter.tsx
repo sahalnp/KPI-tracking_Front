@@ -28,6 +28,7 @@ import { AccountantAccount } from "@/components/Accountant/AccountantAccount";
 import { MonthlyUploads } from "@/components/Accountant/MonthlyUploads";
 import { AttendanceManagement } from "@/components/Accountant/AttendenceManagment";
 import { SalesReports } from "@/components/Accountant/AccountantSalesPage";
+import { OnwerScoringForm } from "@/components/Owner/pages/ScoringPage";
 function MainRouter() {
     const router = createBrowserRouter([
         {
@@ -53,7 +54,7 @@ function MainRouter() {
                     children: [
                         { path: "dashboard", element: <OwnerDashboard /> },
                         { path: "kpis", element: <KPIPage /> },
-                        { path: "scoring", element: <StaffScoringForm /> },
+                        { path: "scoring", element: <OnwerScoringForm/> },
                         { path: "walkouts", element: <WalkOutManagement /> },
                         { path: "account", element: <AccountSettings /> },
                         { path: "users", element: <OwnerUsers /> },

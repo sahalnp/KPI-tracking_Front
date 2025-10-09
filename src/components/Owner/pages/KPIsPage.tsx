@@ -633,7 +633,7 @@ export function KPIPage() {
             </div>
 
             {/* stat blocks */}
-            <div className="px-4 py-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* <div className="px-4 py-6 grid grid-cols-2 md:grid-cols-4 gap-4">
                 <StatBlock
                     label="Total KPIs"
                     value={kpiList.length}
@@ -660,7 +660,32 @@ export function KPIPage() {
                     }
                     color="border-purple-500"
                 />
-            </div>
+            </div> */}
+            {/* ----------  2×2 quick-stats cards (like 2nd code) ---------- */}
+<div className="px-4 py-6 grid grid-cols-3 gap-3">
+  <Card>
+    <CardContent className="p-4 text-center">
+      <p className="text-xs text-gray-600 mb-1">Total KPIs</p>
+      <p className="text-2xl font-bold text-[#FF3F33]">{kpiList.length}</p>
+    </CardContent>
+  </Card>
+  <Card>
+    <CardContent className="p-4 text-center">
+      <p className="text-xs text-gray-600 mb-1">Daily</p>
+      <p className="text-2xl font-bold text-green-600">
+        {kpiList.filter((k) => k.frequency === "daily").length}
+      </p>
+    </CardContent>
+  </Card>
+  <Card>
+    <CardContent className="p-4 text-center">
+      <p className="text-xs text-gray-600 mb-1">Weekly / Monthly</p>
+      <p className="text-2xl font-bold text-orange-600">
+        {kpiList.filter((k) => k.frequency === "weekly" || k.frequency === "monthly").length}
+      </p>
+    </CardContent>
+  </Card>
+</div>
             <div className="flex gap-2">
                 <Button
                     variant={viewMode === "card" ? "default" : "outline"}
@@ -690,81 +715,82 @@ export function KPIPage() {
                 </Button>
             </div>
 
-            {/* Filters Card */}
-           <div className="px-4 mb-6 mt-6">  {/* Added mt-6 for gap */}
-    <Card>
-        <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                        placeholder="Search by name, frequency."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                    />
-                </div>
-                <Button
-                    variant="outline"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="lg:w-auto"
-                >
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filters
-                </Button>
-            </div>
+    
+            {/* ----------  Search + Filters (copy-pasted from 2nd code) ---------- */}
+<div className="px-4 mb-6">
+  <div className="bg-white rounded-lg shadow-sm p-4">
+    <div className="flex flex-row items-center gap-2 w-full">
+      {/* 🔍 Search Bar (Left) */}
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Input
+          placeholder="Search by name, frequency..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10 pr-4 w-full"
+        />
+      </div>
 
-                        {showFilters && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="mt-4 flex flex-col sm:flex-row gap-4"
-                            >
-                                <Select
-                                    value={filterSection}
-                                    onValueChange={setFilterSection}
-                                >
-                                    <SelectTrigger className="flex-1">
-                                        <SelectValue placeholder="All Frequency" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">
-                                            All Frequency
-                                        </SelectItem>
-                                        {sections.map((d) => (
-                                            <SelectItem key={d} value={d}>
-                                                {d}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <Select
-                                    value={filterStatus}
-                                    onValueChange={(
-                                        v: "all" | "active" | "inactive"
-                                    ) => setFilterStatus(v)}
-                                >
-                                    <SelectTrigger className="flex-1">
-                                        <SelectValue placeholder="All Status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">
-                                            All Status
-                                        </SelectItem>
-                                        <SelectItem value="active">
-                                            Active
-                                        </SelectItem>
-                                        <SelectItem value="inactive">
-                                            Inactive
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </motion.div>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
+      {/* 🧰 Filter Button (Right) */}
+      <Button
+        variant="outline"
+        onClick={() => setShowFilters(!showFilters)}
+        className="flex items-center gap-2 whitespace-nowrap"
+      >
+        <Filter className="h-4 w-4 text-gray-600" />
+        Filters
+      </Button>
+    </div>
+
+    <AnimatePresence>
+      {showFilters && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="mt-4 flex flex-col sm:flex-row gap-4"
+        >
+          {/* Frequency filter */}
+          <Select value={filterSection} onValueChange={setFilterSection}>
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="Filter by Frequency" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Frequencies</SelectItem>
+              {sections.map((f) => (
+                <SelectItem key={f} value={f}>
+                  {f}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Status filter */}
+          <Select
+            value={filterStatus}
+            onValueChange={(v: "all" | "active" | "inactive") => setFilterStatus(v)}
+          >
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="Filter by Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Clear */}
+          {(searchQuery || filterSection !== "all" || filterStatus !== "all") && (
+            <Button variant="outline" onClick={() => { setSearchQuery(""); setFilterSection("all"); setFilterStatus("all"); }}>
+              Clear Filters
+            </Button>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+</div>
 
             {/* content */}
             <div className="-mt-5">

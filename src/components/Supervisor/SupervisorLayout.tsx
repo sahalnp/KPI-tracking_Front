@@ -1,7 +1,7 @@
 // src/pages/supervisor/SupervisorLayout.tsx
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { motion,AnimatePresence } from "framer-motion";
 import { UserAuth } from "@/hooks/useAuth";
 import { Home, ClipboardCheck, UserX, User, Users } from "lucide-react";
 
@@ -133,14 +133,18 @@ export function SupervisorLayout() {
       <div className="flex-1 flex overflow-hidden">
         {/* Main Content */}
         <main className="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-          >
-            <Outlet />
-          </motion.div>
+
+  <motion.div
+    key={location.pathname}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -20 }}
+    transition={{ duration: 0.3, ease: "easeInOut" }}
+  >
+    <Outlet />
+  </motion.div>
+
+
         </main>
       </div>
 

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { pushActivity } from "@/lib/setRecentActivity";
 import {
     UserX,
     List,
@@ -27,13 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+
 import { axiosInstance } from "@/api/axios";
 import { useDispatch } from "react-redux";
 import { clearUser } from "@/features/UserSlice";
@@ -120,7 +115,7 @@ export const exportToExcel = async (type: "week" | "month", dispatch: any) => {
 
         // Optional: set column widths
         ws["!cols"] = [
-            { wch: 5 },  // ID
+            { wch: 5 }, // ID
             { wch: 30 }, // Description
             { wch: 12 }, // Priority
             { wch: 20 }, // Item Name
@@ -229,6 +224,7 @@ export function WalkOutManagement() {
             setItemLoading(false);
         }
     }, 400);
+    
 
     const fetchTypes = debounce(async (q: string) => {
         if (!q.trim()) {
@@ -324,8 +320,6 @@ export function WalkOutManagement() {
     const addWalkout = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
-
-        // Get item name from either selected item or manual input
         const finalItemName =
             selectedItem?.name || fd.get("itemName")?.toString().trim();
         const finalItemType =
@@ -351,14 +345,17 @@ export function WalkOutManagement() {
                     staffId: selectedStaff.id,
                 }
             );
-            if (data.success) {
+   
+            if (data?.success )  {
                 const newWalkout = data.walkout;
+
                 setEntries((prev) => [newWalkout, ...prev]);
                 setTodayCount((prev) => prev + 1);
                 setWeekCount((prev) => prev + 1);
                 if (newWalkout.priority === "High")
                     setPriorityCount((prev) => prev + 1);
-                e.currentTarget.reset();
+                
+                  pushActivity('Added', finalItemName, selectedPriority || 'Normal');
                 setSelectedPriority("");
                 setQuery("");
                 setItemQuery("");
@@ -369,6 +366,7 @@ export function WalkOutManagement() {
                 setShowAddModal(false);
                 toast.success("Walk-out recorded successfully!");
             }
+
         } catch (err: any) {
             if (err.response?.status === 401) {
                 localStorage.removeItem("accesstoken");
@@ -391,8 +389,8 @@ export function WalkOutManagement() {
         setSelectedStaff(entry.staff);
         /* pre-fill item & type if backend returns them */
         if (entry.item) {
-            setSelectedItem({ id: entry.item.id, name: entry.item.name });
-            setItemQuery(entry.item.name);
+            setSelectedItem({ id: entry.item.id, name: entry.itemName.name });
+            setItemQuery(entry.itemName.name);
         }
         if (entry.itemType) {
             setSelectedType({
@@ -432,6 +430,8 @@ export function WalkOutManagement() {
                             : entry
                     )
                 );
+                  pushActivity('Edited', selectedItem.name, selectedPriority || 'Normal');
+
                 setShowEditModal(false);
                 setEditingEntry(null);
                 setSelectedPriority("");
@@ -441,6 +441,7 @@ export function WalkOutManagement() {
                 setSelectedStaff(null);
                 setSelectedItem(null);
                 setSelectedType(null);
+                
                 toast.success("Walk-out updated successfully!");
             }
         } catch (err: any) {
@@ -457,32 +458,34 @@ export function WalkOutManagement() {
             }
         }
     };
+/* ---------- DELETE ---------- */
+const deleteWalkout = async () => {
+  if (!deletingId) return;
+  try {
+    const deleted = entries.find(e => e.id === deletingId);
+    await axiosInstance.delete(`/supervisor/dltWalkt/${deletingId}`);
 
-    const deleteWalkout = async () => {
-        if (!deletingId) return;
-        try {
-            await axiosInstance.delete(`/supervisor/dltWalkt/${deletingId}`);
-            setEntries((prev) => prev.filter((e) => e.id !== deletingId));
-            setTodayCount((prev) => Math.max(0, prev - 1));
-            setWeekCount((prev) => Math.max(0, prev - 1));
-            if (entries.find((e) => e.id === deletingId)?.priority === "High")
-                setPriorityCount((prev) => Math.max(0, prev - 1));
-            toast.success("Walk-out deleted");
-        } catch (err: any) {
-            if (err.response?.status === 401) {
-                localStorage.removeItem("accesstoken");
-                localStorage.removeItem("refreshtoken");
-                await logoutSupervisor();
-                dispatch(clearUser());
-                toast.error("Session expired");
-            } else {
-                toast.error(err.response?.data?.message || "Delete failed");
-            }
-        } finally {
-            setShowDeleteModal(false);
-            setDeletingId(null);
-        }
-    };
+    setEntries(prev => prev.filter(e => e.id !== deletingId));
+    setTodayCount(prev => Math.max(0, prev - 1));
+    setWeekCount(prev => Math.max(0, prev - 1));
+    if (deleted?.priority === 'High') setPriorityCount(prev => Math.max(0, prev - 1));
+
+    pushActivity('Deleted', deleted?.itemName?.name || 'N/A', deleted?.priority || 'Normal');
+
+    toast.success('Walk-out deleted');
+  } catch (err: any) {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('accesstoken');
+      localStorage.removeItem('refreshtoken');
+      await logoutSupervisor(); dispatch(clearUser());
+      toast.error('Session expired');
+    } else {
+      toast.error(err.response?.data?.message || 'Delete failed');
+    }
+  } finally {
+    setShowDeleteModal(false); setDeletingId(null);
+  }
+};
 
     /* ---------- render ---------- */
     if (loading) return <LoadingSpinner />;
@@ -496,6 +499,24 @@ export function WalkOutManagement() {
                         <h1 className="text-xl font-semibold text-gray-900">
                             Walk-Out Management
                         </h1>
+                        <motion.button
+                            onClick={() => setShowAddModal(true)}
+                            whileTap={{ scale: 0.95 }}
+                            className="hidden sm:flex items-center bg-[#FF3F33] hover:bg-[#E6362A] text-white p-2 rounded-lg transition-colors"
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Staff
+                        </motion.button>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                        Track customer departures
+                    </p>
+                </div>
+                {/* <div className="bg-white rounded-lg shadow-sm p-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <h1 className="text-xl font-semibold text-gray-900">
+                           
+                        </h1>
                         <div className="flex items-center gap-2">
                             <Button
                                 className="hidden sm:flex items-center gap-2 bg-[#FF3F33] hover:bg-[#E6362A]"
@@ -507,9 +528,9 @@ export function WalkOutManagement() {
                         </div>
                     </div>
                     <p className="text-sm text-gray-600">
-                        Track customer departures
+                        
                     </p>
-                </div>
+                </div> */}
 
                 {/* stats */}
                 <div className="grid grid-cols-3 gap-3">
@@ -543,8 +564,8 @@ export function WalkOutManagement() {
                     </Card>
                 </div>
 
+
                 {/* view toggles */}
-               {/* view toggles */}
                 <div className="flex gap-2">
                     <Button
                         variant={viewMode === "card" ? "default" : "outline"}
@@ -581,7 +602,8 @@ export function WalkOutManagement() {
                             className="flex-1 hover:bg-green-50 hover:text-green-700 hover:border-green-300"
                             onClick={() => exportToExcel("week", dispatch)}
                         >
-                            <Download className="h-4 w-4 mr-2" /> Export This Week
+                            <Download className="h-4 w-4 mr-2" /> Export This
+                            Week
                         </Button>
                         <Button
                             variant="outline"
@@ -589,11 +611,11 @@ export function WalkOutManagement() {
                             className="flex-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
                             onClick={() => exportToExcel("month", dispatch)}
                         >
-                            <Download className="h-4 w-4 mr-2" /> Export This Month
+                            <Download className="h-4 w-4 mr-2" /> Export This
+                            Month
                         </Button>
                     </div>
                 )}
-
 
                 {/* content */}
                 {entries.length === 0 ? (
@@ -683,7 +705,6 @@ export function WalkOutManagement() {
                     </div>
                 ) : (
                     <>
-           
                         <Card className="mt-4">
                             <CardContent className="p-0">
                                 <div className="overflow-x-auto">
@@ -728,8 +749,10 @@ export function WalkOutManagement() {
                                                     <td className="p-3 font-medium">
                                                         {entry.itemName.name
                                                             ?.name ||
-                                                            entry.itemName?.name}/
-                                                             {entry.type.name
+                                                            entry.itemName
+                                                                ?.name}
+                                                        /
+                                                        {entry.type.name
                                                             ?.name ||
                                                             entry.type?.name}
                                                     </td>
@@ -1206,147 +1229,194 @@ export function WalkOutManagement() {
                                 </button>
                             </div>
 
-                            <form
+                         <form
                                 onSubmit={editWalkout}
                                 className="p-6 grid gap-5"
                             >
-                                {/* Item Name */}
-                                <div
-                                    className="flex flex-col gap-1 relative"
-                                    ref={itemDropdownRef}
-                                >
-                                    <Label htmlFor="edit-item">Item Name</Label>
-                                    <div className="relative flex items-center">
-                                        <User
-                                            className="absolute left-3 text-gray-400"
-                                            size={18}
-                                        />
-                                        <Input
-                                            id="edit-item"
-                                            placeholder="Start typing item name…"
-                                            value={itemQuery}
-                                            onChange={(e) => {
-                                                setItemQuery(e.target.value);
-                                                setSelectedItem(null);
-                                            }}
-                                            autoComplete="off"
-                                            className="pl-9"
-                                            required
-                                        />
-                                        {itemLoading && (
-                                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    {filteredItems.length > 0 && (
-                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
-                                            {filteredItems.map((it) => (
-                                                <button
-                                                    type="button"
-                                                    key={it.id}
-                                                    onClick={() => {
-                                                        setItemQuery(it.name);
-                                                        setSelectedItem(it);
-                                                        setFilteredItems([]);
-                                                    }}
-                                                    className="w-full px-3 py-2 hover:bg-gray-100 text-left text-sm"
-                                                >
-                                                    {it.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {selectedItem && (
-                                        <div className="mt-2 flex items-center justify-between px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-                                            <span className="text-sm text-blue-700 font-medium">
-                                                {selectedItem.name}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
+                                {/* Row 1: Item Name + Item Type */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    {/* Item Name */}
+                                    <div
+                                        className="flex flex-col gap-1 relative"
+                                        ref={itemDropdownRef}
+                                    >
+                                        <Label htmlFor="edit-item">
+                                            Item Name
+                                        </Label>
+                                        <div className="relative flex items-center">
+                                            <User
+                                                className="absolute left-3 text-gray-400"
+                                                size={18}
+                                            />
+                                            <Input
+                                                id="edit-item"
+                                                name="itemName"
+                                                placeholder="Start typing item name…"
+                                                value={itemQuery}
+                                                onChange={(e) => {
+                                                    setItemQuery(
+                                                        e.target.value
+                                                    );
                                                     setSelectedItem(null);
-                                                    setItemQuery("");
                                                 }}
-                                            >
-                                                <X
-                                                    size={16}
-                                                    className="text-blue-600 hover:text-blue-800"
-                                                />
-                                            </button>
+                                                autoComplete="off"
+                                                className="pl-9"
+                                            />
+                                            {itemLoading && (
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-
-                                {/* Item Type */}
-                                <div
-                                    className="flex flex-col gap-1 relative"
-                                    ref={typeDropdownRef}
-                                >
-                                    <Label htmlFor="edit-type">Item Type</Label>
-                                    <div className="relative flex items-center">
-                                        <Flag
-                                            className="absolute left-3 text-gray-400"
-                                            size={18}
-                                        />
-                                        <Input
-                                            id="edit-type"
-                                            placeholder="Start typing type…"
-                                            value={typeQuery}
-                                            onChange={(e) => {
-                                                setTypeQuery(e.target.value);
-                                                setSelectedType(null);
-                                            }}
-                                            autoComplete="off"
-                                            className="pl-9"
-                                            required
-                                        />
-                                        {typeLoading && (
-                                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                        {filteredItems.length > 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
+                                                {filteredItems.map((it) => (
+                                                    <button
+                                                        type="button"
+                                                        key={it.id}
+                                                        onClick={() => {
+                                                            setItemQuery(
+                                                                it.name
+                                                            );
+                                                            setSelectedItem(it);
+                                                            setFilteredItems(
+                                                                []
+                                                            );
+                                                        }}
+                                                        className="w-full px-3 py-2 hover:bg-gray-100 text-left text-sm"
+                                                    >
+                                                        {it.name}
+                                                    </button>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
-                                    {filteredTypes.length > 0 && (
-                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
-                                            {filteredTypes.map((ty) => (
-                                                <button
-                                                    type="button"
-                                                    key={ty.id}
-                                                    onClick={() => {
-                                                        setTypeQuery(ty.name);
-                                                        setSelectedType(ty);
-                                                        setFilteredTypes([]);
-                                                    }}
-                                                    className="w-full px-3 py-2 hover:bg-gray-100 text-left text-sm"
-                                                >
-                                                    {ty.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {selectedType && (
-                                        <div className="mt-2 flex items-center justify-between px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
-                                            <span className="text-sm text-green-700 font-medium">
-                                                {selectedType.name}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
+
+                                    {/* Item Type */}
+                                    <div
+                                        className="flex flex-col gap-1 relative"
+                                        ref={typeDropdownRef}
+                                    >
+                                        <Label htmlFor="edit-type">
+                                            Item Type
+                                        </Label>
+                                        <div className="relative flex items-center">
+                                            <Flag
+                                                className="absolute left-3 text-gray-400"
+                                                size={18}
+                                            />
+                                            <Input
+                                                id="edit-type"
+                                                name="itemType"
+                                                placeholder="Start typing type…"
+                                                value={typeQuery}
+                                                onChange={(e) => {
+                                                    setTypeQuery(
+                                                        e.target.value
+                                                    );
                                                     setSelectedType(null);
-                                                    setTypeQuery("");
                                                 }}
-                                            >
-                                                <X
-                                                    size={16}
-                                                    className="text-green-600 hover:text-green-800"
-                                                />
-                                            </button>
+                                                autoComplete="off"
+                                                className="pl-9"
+                                            />
+                                            {typeLoading && (
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
+                                        {filteredTypes.length > 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
+                                                {filteredTypes.map((ty) => (
+                                                    <button
+                                                        type="button"
+                                                        key={ty.id}
+                                                        onClick={() => {
+                                                            setTypeQuery(
+                                                                ty.name
+                                                            );
+                                                            setSelectedType(ty);
+                                                            setFilteredTypes(
+                                                                []
+                                                            );
+                                                        }}
+                                                        className="w-full px-3 py-2 hover:bg-gray-100 text-left text-sm"
+                                                    >
+                                                        {ty.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
-                                {/* Staff */}
+                                {/* Row 2: Description */}
+                                <div className="flex flex-col gap-1">
+                                    <Label htmlFor="edit-description">
+                                        Description
+                                    </Label>
+                                    <Textarea
+                                        id="edit-description"
+                                        name="description"
+                                        placeholder="Enter description about walkout"
+                                        defaultValue={editingEntry.description}
+                                        className="min-h-[60px]"
+                                        required
+                                    />
+                                </div>
+
+                                {/* Row 3: Priority Level */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex flex-col gap-1">
+                                        <Label>Priority Level</Label>
+                                        <RadioGroup
+                                            value={selectedPriority}
+                                            onValueChange={setSelectedPriority}
+                                            className="flex gap-6 mt-1"
+                                        >
+                                            {["Low", "Medium", "High"].map(
+                                                (level) => (
+                                                    <div
+                                                        key={level}
+                                                        className="flex items-center space-x-2"
+                                                    >
+                                                        <RadioGroupItem
+                                                            value={level}
+                                                            id={`edit-${level.toLowerCase()}`}
+                                                            className="relative"
+                                                        >
+                                                            {selectedPriority ===
+                                                                level && (
+                                                                <motion.div
+                                                                    layoutId="edit-highlight"
+                                                                    className="absolute inset-0 rounded-full bg-blue-100"
+                                                                    initial={{
+                                                                        opacity: 0,
+                                                                    }}
+                                                                    animate={{
+                                                                        opacity: 1,
+                                                                    }}
+                                                                    transition={{
+                                                                        type: "spring",
+                                                                        stiffness: 500,
+                                                                        damping: 30,
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </RadioGroupItem>
+                                                        <Label
+                                                            htmlFor={`edit-${level.toLowerCase()}`}
+                                                        >
+                                                            {level}
+                                                        </Label>
+                                                    </div>
+                                                )
+                                            )}
+                                        </RadioGroup>
+                                    </div>
+                                </div>
+
+                                {/* Row 4: Staff */}
                                 <div
                                     className="flex flex-col gap-1 relative"
                                     ref={staffDropdownRef}
@@ -1417,12 +1487,8 @@ export function WalkOutManagement() {
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    setSelectedStaff(
-                                                        editingEntry.staff
-                                                    );
-                                                    setQuery(
-                                                        editingEntry.staff.name
-                                                    );
+                                                    setSelectedStaff(null);
+                                                    setQuery("");
                                                 }}
                                             >
                                                 <X size={16} />

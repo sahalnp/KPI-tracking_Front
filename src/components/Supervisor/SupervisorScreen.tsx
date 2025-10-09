@@ -737,13 +737,14 @@ export function SupervisorDashboard() {
 
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    const storedActivity = localStorage.getItem("SupervisorrecentActivity");
-    if (storedActivity) {
-      const parsed: any[] = JSON.parse(storedActivity);
-      setRecentActivity(parsed.slice(-5).reverse());
-    }
-  }, []);
+useEffect(() => {
+  const storedActivity = localStorage.getItem("SupervisorRecentActivity");
+  if (storedActivity) {
+    const parsed: any[] = JSON.parse(storedActivity);
+    setRecentActivity(parsed.slice(0, 5));
+  }
+}, []);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -923,7 +924,7 @@ export function SupervisorDashboard() {
           </CardContent>
         </Card>
 
-        {/* Pie Chart */}
+        {/* Pie Chart
         <Card>
           <CardHeader>
             <CardTitle>Customer Walk-Out Reasons</CardTitle>
@@ -983,8 +984,8 @@ export function SupervisorDashboard() {
               </div>
             )}
           </CardContent>
-        </Card>
-      </div>
+        </Card>*/}
+      </div> 
 
       {/* Recent Activity */}
       <Card>
