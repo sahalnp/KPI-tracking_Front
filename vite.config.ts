@@ -8,7 +8,7 @@ export default defineConfig({
     proxy: {
          
       '/api': {
-        target:"https://kpi-tracking-back.vercel.app/api",
+        target:"http://10.63.194.166:3000/api",
         changeOrigin: true,
         secure: false,
       }
