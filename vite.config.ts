@@ -4,11 +4,10 @@ import * as path from "path"
 
 export default defineConfig({
   server:{
-    host:true,
     proxy: {
       // Proxy API calls during dev to avoid CORS and mixed content
       '/api': {
-        target: process.env.VITE_PROXY_TARGET || 'http://localhost:3000',
+        target: import.meta.env.VITE_API_BASE_URL,
         changeOrigin: true,
         secure: false,
       }
