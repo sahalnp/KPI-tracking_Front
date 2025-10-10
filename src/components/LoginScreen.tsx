@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDispatch } from "react-redux";
 import { setUser } from "@/features/UserSlice";
+import axios from "axios";
 
 export function LoginScreen() {
     const [mobile, setMobile] = useState("");
@@ -37,7 +38,7 @@ export function LoginScreen() {
         setIsLoading(true);
 
         try {
-            const { data } = await axiosInstance.post("/auth/login", {
+            const { data } = await axios.post("https://kpi-tracking-back.vercel.app/api/auth/login", {
                 mobile,
                 pin,
             });
