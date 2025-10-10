@@ -2,9 +2,10 @@
 // dotenv.config()
 import axios from 'axios';
 
-// Prefer env-driven base URL. In dev, default to '/api' to work with Vite proxy.
-const baseURL = (import.meta as any).env?.VITE_API_URL
-  || (import.meta as any).env?.DEV ? '/api' : 'https://kpi-tracking-back.onrender.com/api';
+// Prefer env-driven base URL; default to relative "/api" so Vite proxy works in dev
+// Using a defensive access pattern to avoid TS errors when Vite types are not included
+const viteEnv = (typeof import.meta !== 'undefined' && (import.meta as any)?.env) || {};
+const baseURL = viteEnv.VITE_API_BASE_URL || '/api';
 
 export const axiosInstance = axios.create({
   baseURL,
