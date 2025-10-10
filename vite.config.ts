@@ -5,7 +5,7 @@ import * as path from "path"
 export default defineConfig({
   server:{
     proxy: {
-
+      host: '0.0.0.0',    
       '/api': {
         target:"https://kpi-tracking-back.vercel.app/api",
         changeOrigin: true,
