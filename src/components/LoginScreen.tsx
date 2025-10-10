@@ -38,7 +38,7 @@ export function LoginScreen() {
         setIsLoading(true);
 
         try {
-            const { data } = await axios.post("https://kpi-tracking-back.vercel.app/api/auth/login", {
+            const { data } = await axios.post("http://10.63.194.166:3000/api/auth/login", {
                 mobile,
                 pin,
             });
