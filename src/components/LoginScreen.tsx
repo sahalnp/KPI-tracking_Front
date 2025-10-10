@@ -51,7 +51,6 @@ export function LoginScreen() {
                 }
                 dispatch(setUser(data.user));
                 toast.success(`Welcome, ${data.role}!`);
-                // ✅ Remove navigate, PublicRoute will handle redirect
             }
         } catch (err: any) {
             toast.error(
@@ -73,7 +72,7 @@ export function LoginScreen() {
         try {
             await axiosInstance.post("/auth/forgot-pin", { email, mobile });
             toast.success("A new PIN has been sent to your email.");
-        } catch (error) {
+        } catch (error:any) {
             if (error.response?.status === 404) {
                 toast.error(
                     error.response.data?.message || "Resource not found"
