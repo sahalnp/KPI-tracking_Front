@@ -5,9 +5,9 @@ import * as path from "path"
 export default defineConfig({
   server:{
     proxy: {
-      // Proxy API calls during dev to avoid CORS and mixed content
+
       '/api': {
-        target: import.meta.env.VITE_API_BASE_URL,
+        target:"https://kpi-tracking-back.vercel.app/api",
         changeOrigin: true,
         secure: false,
       }
