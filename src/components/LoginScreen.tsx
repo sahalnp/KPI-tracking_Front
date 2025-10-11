@@ -18,6 +18,8 @@ export function LoginScreen() {
     const [isPinLoading, setIsPinLoading] = useState(false);
 
     const dispatch = useDispatch();
+    console.log("Login will POST to:", axiosInstance.defaults.baseURL + "/auth/login");
+
 
     const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
         setMobile(e.target.value.replace(/\D/g, "").slice(0, 10));
