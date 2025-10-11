@@ -18,8 +18,7 @@ export function LoginScreen() {
     const [isPinLoading, setIsPinLoading] = useState(false);
 
     const dispatch = useDispatch();
-    console.log("Login will POST to:", axiosInstance.defaults.baseURL + "/auth/login");
-
+   
 
     const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
         setMobile(e.target.value.replace(/\D/g, "").slice(0, 10));
@@ -34,6 +33,8 @@ export function LoginScreen() {
     };
 
     const handleLogin = async () => {
+         console.log("Login will POST to:", axiosInstance.defaults.baseURL + "/auth/login");
+
         if (pin.length !== 6 || mobile.length < 10) return;
         setIsLoading(true);
 
