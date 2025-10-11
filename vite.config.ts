@@ -5,7 +5,6 @@ import * as path from "path";
 export default defineConfig({
   server: {
     host: "0.0.0.0",
-    port: 3000,
     allowedHosts: [
       "kpi-tracking-front.onrender.com",
     ],

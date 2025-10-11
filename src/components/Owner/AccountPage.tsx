@@ -379,7 +379,6 @@ export default function AccountSettings() {
         name: "",
         mobile: "",
         floor: "",
-        section: "",
     });
     const navigate = useNavigate();
     const dispatch = useDispatch();
@@ -402,7 +401,6 @@ export default function AccountSettings() {
                     name: res.data.user.name || "",
                     mobile: res.data.user.mobile || "",
                     floor: res.data.user.floor_id || "",
-                    section: res.data.user.section || "",
                 });
             } catch (err: any) {
                 if (err.response?.status === 401) {
@@ -425,7 +423,6 @@ export default function AccountSettings() {
                     name: editData.name,
                     mobile: editData.mobile,
                     floor: editData.floor,
-                    section: editData.section,
                 }
             );
 
@@ -449,7 +446,6 @@ export default function AccountSettings() {
             name: user.name || "",
             mobile: user.mobile || "",
             floor: user.floor_id || "",
-            section: user.section || "",
         });
         setIsEditing(false);
     };
@@ -626,28 +622,7 @@ export default function AccountSettings() {
                             </div>
                         )}
 
-                        {/* Section - Editable */}
-                        {isEditing ? (
-                            <div className="space-y-1">
-                                <Label className="text-sm font-medium flex items-center space-x-2">
-                                    <Building className="h-4 w-4 text-gray-400" />
-                                    <span>Section:</span>
-                                </Label>
-                                <Input
-                                    value={editData.section}
-                                    onChange={(e) =>
-                                        setEditData({ ...editData, section: e.target.value })
-                                    }
-                                    placeholder="Enter section"
-                                />
-                            </div>
-                        ) : (
-                            <div className="flex items-center space-x-2">
-                                <Building className="h-4 w-4 text-gray-400" />
-                                <Label className="text-sm text-gray-600">Section:</Label>
-                                <span className="font-medium">{user.section || "N/A"}</span>
-                            </div>
-                        )}
+                        
 
                         {/* Floor ID - Editable */}
                         {isEditing ? (

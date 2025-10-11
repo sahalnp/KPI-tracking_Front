@@ -6,6 +6,7 @@ import userReducer from "../features/UserSlice";
 const persistConfig = {
   key: "root",
   storage,
+  whitelist: ["user"], // Only persist user data
 };
 
 
@@ -26,4 +27,8 @@ const store = configureStore({
 });
 
 export const persistor = persistStore(store);
+
+// Export the RootState type
+export type RootState = ReturnType<typeof store.getState>;
+
 export default store;

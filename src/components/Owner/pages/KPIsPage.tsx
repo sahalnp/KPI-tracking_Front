@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
 import {
-    Eye,
+
     Trash2,
     Plus,
     X,
@@ -365,7 +365,7 @@ export function KPIPage() {
                                             }}
                                             className="p-2 text-gray-400 hover:text-green-500"
                                         >
-                                            <Eye size={16} />
+                                          
                                         </button>
                                         <button
                                             onClick={() => openModal(k)}
@@ -549,7 +549,7 @@ export function KPIPage() {
                                                         className="p-2 text-gray-400 hover:text-green-500 transition-colors"
                                                         title="View Details"
                                                     >
-                                                        <Eye size={16} />
+                                                       
                                                     </button>
                                                     <button
                                                         onClick={() =>

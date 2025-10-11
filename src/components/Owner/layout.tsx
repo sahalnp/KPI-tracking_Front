@@ -135,14 +135,14 @@ export function OwnerLayout() {
                                     Century Fashion City
                                 </h1>
                                 <p className="text-sm text-gray-600">
-                                    Welcome, Owner
+                                    Welcome, {user.name}
                                 </p>
                             </div>
                         </div>
                         <div className="text-right">
                             <div className="bg-gradient-to-br from-gray-50 to-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
                                 <p className="text-sm font-semibold capitalize text-gray-900">
-                                    {user?.section}
+                                    {user?.role}
                                 </p>
                             </div>
                         </div>

@@ -9,6 +9,7 @@ import {
     Calendar,
     UserPlus,
     XCircle,
+    History,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -202,13 +203,14 @@ export default function OwnerDashboard() {
     const [recentUsers, setRecentUsers] = useState<User[]>([]);
       const [recentActivity, setRecentActivity] = useState<any[]>([]);
     const dispatch = useDispatch();
-useEffect(() => {
-  const storedActivity = localStorage.getItem("SupervisorRecentActivity");
-  if (storedActivity) {
-    const parsed: any[] = JSON.parse(storedActivity);
-    setRecentActivity(parsed.slice(0, 5));
-  }
-}, []);
+    
+    useEffect(() => {
+        const storedActivity = localStorage.getItem("SupervisorRecentActivity");
+        if (storedActivity) {
+            const parsed: any[] = JSON.parse(storedActivity);
+            setRecentActivity(parsed.slice(0, 5));
+        }
+    }, []);
     useEffect(() => {
         const fetchDashboard = async () => {
             setLoading(true);

@@ -30,12 +30,11 @@ export function AccountantAccount() {
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [profileData, setProfileData] = useState<any>({})
   const [editedData, setEditedData] = useState<any>({})
-  const [showOldPin, setShowOldPin] = useState(false)
   const [showNewPin, setShowNewPin] = useState(false)
   const [showConfirmPin, setShowConfirmPin] = useState(false)
   const [loading, setLoading] = useState(false)
   const [pinChangeData, setPinChangeData] = useState({
-    currentPin: '',
+
     newPin: '',
     confirmPin: ''
   })
@@ -96,7 +95,7 @@ export function AccountantAccount() {
   const handlePinChange = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!pinChangeData.currentPin || !pinChangeData.newPin || !pinChangeData.confirmPin) {
+    if ( !pinChangeData.newPin || !pinChangeData.confirmPin) {
       toast.error('All PIN fields are required')
       return
     }
@@ -113,12 +112,12 @@ export function AccountantAccount() {
 
     try {
       await axiosInstance.patch('/accountant/change-pin', {
-        currentPin: pinChangeData.currentPin,
+
         newPin: pinChangeData.newPin
       })
       
       toast.success('PIN changed successfully')
-      setPinChangeData({ currentPin: '', newPin: '', confirmPin: '' })
+      setPinChangeData({  newPin: '', confirmPin: '' })
     } catch (err: any) {
       if (err.response?.status === 401) {
         localStorage.removeItem('accesstoken')
@@ -214,13 +213,7 @@ export function AccountantAccount() {
             {/* Info Card */}
             <Card className="lg:col-span-2 relative">
               {/* Active/Inactive Badge (bottom right) */}
-              <div className="absolute bottom-3 right-3">
-                {profileData.active_flag ? (
-                  <Badge className="bg-green-100 text-green-800">Active</Badge>
-                ) : (
-                  <Badge className="bg-red-100 text-red-800">Inactive</Badge>
-                )}
-              </div>
+              
 
               <CardHeader className="flex flex-row justify-between items-start">
                 <div>
@@ -308,12 +301,7 @@ export function AccountantAccount() {
                     <span className="font-medium">Role:</span> {profileData.role}
                   </p>
 
-                  {/* Section - View Only */}
-                  {profileData.section && (
-                    <p className="text-sm">
-                      <span className="font-medium">Section:</span> {profileData.section}
-                    </p>
-                  )}
+                 
                 </div>
               </CardContent>
             </Card>
@@ -332,33 +320,7 @@ export function AccountantAccount() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handlePinChange} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="currentPin">Current PIN</Label>
-                  <div className="relative">
-                    <Input
-                      id="currentPin"
-                      type={showOldPin ? 'text' : 'password'}
-                      value={pinChangeData.currentPin}
-                      onChange={(e) =>
-                        setPinChangeData({ ...pinChangeData, currentPin: e.target.value.replace(/\D/g, '') })
-                      }
-                      maxLength={6}
-                      placeholder="Enter current PIN"
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                      onClick={() => setShowOldPin(!showOldPin)}
-                    >
-                      {showOldPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="newPin">New PIN</Label>
                     <div className="relative">
@@ -415,7 +377,7 @@ export function AccountantAccount() {
                 <Button 
                   type="submit" 
                   className="bg-[#FF3F33] hover:bg-[#E6362B] w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={!pinChangeData.currentPin || !pinChangeData.newPin || !pinChangeData.confirmPin}
+                  disabled={ !pinChangeData.newPin || !pinChangeData.confirmPin}
                 >
                   Change PIN
                 </Button>
