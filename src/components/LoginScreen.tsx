@@ -34,6 +34,8 @@ export function LoginScreen() {
 
     const handleLogin = async () => {
          console.log("Login will POST to:", axiosInstance.defaults.baseURL + "/auth/login");
+         console.log("Axios instance baseURL:", axiosInstance.defaults.baseURL);
+         console.log("Full URL should be:", "https://kpi-tracking-back.onrender.com/api/auth/login");
 
         if (pin.length !== 6 || mobile.length < 10) return;
         setIsLoading(true);

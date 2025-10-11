@@ -20,6 +20,10 @@ export const axiosInstance = axios.create({
   withCredentials: true, 
 });
 
+// Force the baseURL to be correct
+axiosInstance.defaults.baseURL = "https://kpi-tracking-back.onrender.com/api";
+console.log("Axios baseURL set to:", axiosInstance.defaults.baseURL);
+
 // Add request interceptor to log what's being sent
 axiosInstance.interceptors.request.use((config) => {
   console.log('Request URL:', config.url);
