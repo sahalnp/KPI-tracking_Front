@@ -7,8 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDispatch } from "react-redux";
 import { setUser } from "@/features/UserSlice";
-import axios from "axios";
-
 export function LoginScreen() {
     const [mobile, setMobile] = useState("");
     const [pin, setPin] = useState("");
