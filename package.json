@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-   "start": "cross-env PORT=3000 serve -s dist -l $PORT",
+    "start": "serve -s dist -l 3000",
     "preview": "vite preview"
   },
   "dependencies": {
