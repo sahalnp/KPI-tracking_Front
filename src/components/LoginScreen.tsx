@@ -65,6 +65,7 @@ export function LoginScreen() {
     };
 
     const handleSendNewPin = async (e: any) => {
+        console.log("Login will POST to:", axiosInstance.defaults.baseURL + "/auth/login");
         e.preventDefault();
         if (!email) return toast.error("Please enter your email.");
         if (mobile.length !== 10)
