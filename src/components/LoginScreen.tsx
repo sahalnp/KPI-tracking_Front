@@ -35,7 +35,7 @@ export function LoginScreen() {
     const handleLogin = async () => {
          console.log("Login will POST to:", axiosInstance.defaults.baseURL + "/auth/login");
          console.log("Axios instance baseURL:", axiosInstance.defaults.baseURL);
-         console.log("Full URL should be:", "https://kpi-tracking-back.vercel.app/api/auth/login");
+         console.log("Full URL should be:", "https://kpi-tracking-back-6domk2bqt-muhammed-sahals-projects-e6fd404c.vercel.app/api/auth/login");
 
         if (pin.length !== 6 || mobile.length < 10) return;
         setIsLoading(true);
