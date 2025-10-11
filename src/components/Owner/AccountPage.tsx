@@ -1,351 +1,4 @@
-// import { useEffect, useState } from "react";
-// import { AnimatePresence, motion } from "framer-motion";
-// import {
-//     Card,
-//     CardContent,
-//     CardDescription,
-//     CardHeader,
-//     CardTitle,
-// } from "@/components/ui/card";
-// import { Button } from "@/components/ui/button";
-// import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
-// import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-// import { Badge } from "@/components/ui/badge";
-// import { User, Lock, LogOut, Phone, Building, Hash } from "lucide-react";
-// import { toast } from "sonner";
-// import { axiosInstance } from "@/api/axios";
-// import { useNavigate } from "react-router-dom";
-// import { useDispatch } from "react-redux";
-// import { clearUser } from "@/features/UserSlice";
-// import { Home, Calendar } from "lucide-react";
-// import { logoutOwner } from "@/lib/logoutApi";
 
-// export default function AccountSettings() {
-//     const [newPin, setNewPin] = useState("");
-//     const [confirmPin, setConfirmPin] = useState("");
-//     const [isChangingPin, setIsChangingPin] = useState(false);
-//     const [showPinChange, setShowPinChange] = useState(false);
-//     const [isEditing, setIsEditing] = useState(false);
-//     const [editData, setEditData] = useState({
-//         name: "",
-//         floor: "",
-//         section: "",
-//     });
-//     const navigate = useNavigate();
-//     const [user, setUser] = useState<any>({});
-//     const dispatch = useDispatch();
-
-//     const onLogout = () => {
-//         dispatch(clearUser());
-//         localStorage.removeItem("accesstoken");
-//         localStorage.removeItem("refreshtoken");
-//         navigate("/");
-//         toast.success("Logged out successfully");
-//     };
-
-//     useEffect(() => {
-//         const fetchUserData = async () => {
-//             try {
-//                 const res = await axiosInstance.get("/owner/me");
-//                 setUser(res.data.user);
-//             } catch (err: any) {
-//                 if (err.response?.status === 401) {
-//                     localStorage.removeItem("accessToken");
-//                     localStorage.removeItem("refreshToken");
-//                     await logoutOwner();
-//                     dispatch(clearUser());
-//                 }
-//             }
-//         };
-
-//         fetchUserData();
-//     }, []);
-
-//     const handleUpdate = async () => {
-//         try {
-//             const res = await axiosInstance.patch(
-//                 `/owner/editOwner/${user.id}`,
-//                 {
-//                     name: editData.name,
-//                     floor: editData.floor,
-//                     section: editData.section,
-//                 }
-//             );
-
-//             setUser(res.data.user);
-//             toast.success("Profile updated successfully");
-//             setIsEditing(false);
-//         } catch (err: any) {
-//             if (err.response?.status === 401) {
-//                 localStorage.removeItem("accessToken");
-//                 localStorage.removeItem("refreshToken");
-//                 await logoutOwner();
-//                 dispatch(clearUser());
-//             }
-//         }
-//     };
-//     const handlePinChange = async (e: React.FormEvent<HTMLFormElement>) => {
-//         e.preventDefault();
-
-//         // Validation
-//         if (!newPin || !confirmPin) {
-//             toast.error("Please fill in all PIN fields");
-//             return;
-//         }
-
-//         if (newPin !== confirmPin) {
-//             toast.error("New PIN and confirmation do not match");
-//             return;
-//         }
-
-//         if (newPin.length !== 6) {
-//             toast.error("PIN must be 6 digits");
-//             return;
-//         }
-
-//         setIsChangingPin(true);
-
-//         try {
-//             await axiosInstance.patch("/owner/changePin", {
-//                 pin: newPin,
-//             });
-
-//             // Simulate API delay
-//             setTimeout(() => {
-//                 toast.success("PIN changed successfully");
-//                 setNewPin("");
-//                 setConfirmPin("");
-//                 setIsChangingPin(false);
-//                 setShowPinChange(false);
-//             }, 1000);
-//         } catch (error) {
-//             toast.error("Failed to change PIN");
-//             setIsChangingPin(false);
-//         }
-//     };
-
-//     return (
-//         <div className="h-screen overflow-y-auto">
-//             <motion.div
-//                 initial={{ opacity: 0, y: 20 }}
-//                 animate={{ opacity: 1, y: 0 }}
-//                 transition={{ duration: 0.3 }}
-//                 className="p-6 space-y-6 max-w-4xl mx-auto pb-20"
-//             >
-//                 <div className="bg-white rounded-lg shadow-sm p-4">
-//                     <div className="flex items-center justify-between mb-2">
-//                         <h1 className="text-xl font-semibold text-gray-900">
-//                             Accountant Settings
-//                         </h1>
-//                     </div>
-//                     <p className="text-sm text-gray-600">
-//                         Manage your account preferences and security
-//                     </p>
-//                 </div>
-
-//                 {/* Profile Information */}
-//                 <Card className="relative p-4">
-//                     {/* Active Circular Tick */}
-//                     {/* Active Badge */}
-
-//                     {/* Top Row: Avatar + Name + Role */}
-//                     <div className="flex items-center justify-between mb-4">
-//                         <div className="flex items-center space-x-4">
-//                             <Avatar className="h-16 w-16">
-//                                 <AvatarFallback className="bg-[#FF3F33] text-white text-lg">
-//                                     {user?.name
-//                                         ? user.name
-//                                               .split(" ") // split by space
-//                                               .map((n: string) => n[0]) // take first letter of each part
-//                                               .join("") // join together (e.g., "MS")
-//                                               .toUpperCase()
-//                                         : "U"}
-//                                 </AvatarFallback>
-//                             </Avatar>
-//                             <div className="flex items-center space-x-2">
-//                                 <span className="font-medium text-lg">
-//                                     {user.name || "N/A"}
-//                                 </span>
-//                                 <Badge className="bg-blue-100 text-blue-800 capitalize">
-//                                     {user.role || "N/A"}
-//                                 </Badge>
-//                             </div>
-//                         </div>
-//                         {/* Checkmark handled by absolute SVG above */}
-//                     </div>
-
-//                     {/* User Details */}
-//                     <div className="space-y-2">
-//                         {/* Section */}
-//                         <div className="flex items-center space-x-2">
-//                             <Building className="h-4 w-4 text-gray-400" />
-//                             <Label className="text-sm text-gray-600">
-//                                 Section:
-//                             </Label>
-//                             <span className="font-medium">
-//                                 {user.section || "N/A"}
-//                             </span>
-//                         </div>
-
-//                         {/* Mobile */}
-//                         <div className="flex items-center space-x-2">
-//                             <Phone className="h-4 w-4 text-gray-400" />
-//                             <Label className="text-sm text-gray-600">
-//                                 Mobile:
-//                             </Label>
-//                             <span className="font-medium">
-//                                 {user.mobile || "N/A"}
-//                             </span>
-//                         </div>
-
-//                         {/* Floor ID */}
-//                         <div className="flex items-center space-x-2">
-//                             <Home className="h-4 w-4 text-gray-400" />
-//                             <Label className="text-sm text-gray-600">
-//                                 Floor:
-//                             </Label>
-//                             <span className="font-medium">
-//                                 {user.floor_id || "N/A"}
-//                             </span>
-//                         </div>
-
-//                         {/* Created At */}
-//                         <div className="flex items-center space-x-2">
-//                             <Calendar className="h-4 w-4 text-gray-400" />
-//                             <Label className="text-sm text-gray-600">
-//                                 Joined At:
-//                             </Label>
-//                             <span className="font-medium">
-//                                 {user.created_at
-//                                     ? new Date(
-//                                           user.created_at
-//                                       ).toLocaleDateString()
-//                                     : "N/A"}
-//                             </span>
-//                         </div>
-//                     </div>
-//                 </Card>
-
-//                 {/* Change PIN */}
-//                 <Card>
-//                     <CardHeader>
-//                         <CardTitle className="flex items-center space-x-2">
-//                             <Lock className="h-5 w-5 text-[#FF3F33]" />
-//                             <span>Security</span>
-//                         </CardTitle>
-//                         <CardDescription>
-//                             Manage your account security settings
-//                         </CardDescription>
-//                     </CardHeader>
-//                     <CardContent>
-//                         {!showPinChange ? (
-//                             <Button
-//                                 onClick={() => setShowPinChange(true)}
-//                                 className="bg-[#FF3F33] hover:bg-[#E6362B] text-white rounded-xl shadow-md"
-//                             >
-//                                 Change PIN
-//                             </Button>
-//                         ) : (
-//                             <AnimatePresence mode="wait">
-//                                 {showPinChange && (
-//                                     <motion.div
-//                                         key="pin-change-form"
-//                                         initial={{ opacity: 0, y: 15 }}
-//                                         animate={{ opacity: 1, y: 0 }}
-//                                         exit={{ opacity: 0, y: -15 }}
-//                                         transition={{ duration: 0.3 }}
-//                                         className="space-y-4"
-//                                     >
-//                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                                             <div className="space-y-2">
-//                                                 <Label htmlFor="new-pin">
-//                                                     New PIN
-//                                                 </Label>
-//                                                 <Input
-//                                                     id="new-pin"
-//                                                     type="password"
-//                                                     value={newPin}
-//                                                     onChange={(e) =>
-//                                                         setNewPin(
-//                                                             e.target.value
-//                                                         )
-//                                                     }
-//                                                     placeholder="Enter new PIN"
-//                                                     maxLength={6}
-//                                                 />
-//                                             </div>
-
-//                                             <div className="space-y-2">
-//                                                 <Label htmlFor="confirm-pin">
-//                                                     Confirm New PIN
-//                                                 </Label>
-//                                                 <Input
-//                                                     id="confirm-pin"
-//                                                     type="password"
-//                                                     value={confirmPin}
-//                                                     onChange={(e) =>
-//                                                         setConfirmPin(
-//                                                             e.target.value
-//                                                         )
-//                                                     }
-//                                                     placeholder="Confirm new PIN"
-//                                                     maxLength={6}
-//                                                 />
-//                                             </div>
-//                                         </div>
-
-//                                         <div className="flex space-x-2">
-//                                             <Button
-//                                                 onClick={handlePinChange}
-//                                                 className="bg-[#FF3F33] hover:bg-[#E6362B] text-white rounded-xl shadow-md"
-//                                                 disabled={isChangingPin}
-//                                             >
-//                                                 {isChangingPin
-//                                                     ? "Changing PIN..."
-//                                                     : "Update PIN"}
-//                                             </Button>
-//                                             <Button
-//                                                 variant="outline"
-//                                                 onClick={() => {
-//                                                     setShowPinChange(false);
-//                                                     setNewPin("");
-//                                                     setConfirmPin("");
-//                                                 }}
-//                                                 disabled={isChangingPin}
-//                                             >
-//                                                 Cancel
-//                                             </Button>
-//                                         </div>
-//                                     </motion.div>
-//                                 )}
-//                             </AnimatePresence>
-//                         )}
-//                     </CardContent>
-//                 </Card>
-
-//                 {/* Account Actions */}
-//                 <Card>
-//                     <CardHeader>
-//                         <CardTitle>Account Actions</CardTitle>
-//                     </CardHeader>
-//                     <CardContent>
-//                         <div className="flex justify-center">
-//                             <Button
-//                                 onClick={onLogout}
-//                                 size="lg"
-//                                 className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-xl shadow-lg w-full max-w-xs"
-//                             >
-//                                 <LogOut className="h-5 w-5 mr-2" />
-//                                 Sign Out
-//                             </Button>
-//                         </div>
-//                     </CardContent>
-//                 </Card>
-//             </motion.div>
-//         </div>
-//     );
-// }
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -367,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { clearUser } from "@/features/UserSlice";
 import { logoutOwner } from "@/lib/logoutApi";
+import { LoadingSpinner } from "../ui/spinner";
 
 export default function AccountSettings() {
     const [newPin, setNewPin] = useState("");
@@ -375,6 +29,7 @@ export default function AccountSettings() {
     const [showPinChange, setShowPinChange] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [user, setUser] = useState<any>({});
+    const [loading,setLoading]=useState(false)
     const [editData, setEditData] = useState({
         name: "",
         mobile: "",
@@ -394,6 +49,7 @@ export default function AccountSettings() {
 
     useEffect(() => {
         const fetchUserData = async () => {
+            setLoading(true)
             try {
                 const res = await axiosInstance.get("/owner/me");
                 setUser(res.data.user);
@@ -410,6 +66,7 @@ export default function AccountSettings() {
                     dispatch(clearUser());
                 }
             }
+            setLoading(false)
         };
 
         fetchUserData();
@@ -487,6 +144,9 @@ export default function AccountSettings() {
             setIsChangingPin(false);
         }
     };
+    if(loading){
+        return <LoadingSpinner />
+    }
 
     return (
         <div className="h-screen overflow-y-auto">
