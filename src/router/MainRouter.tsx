@@ -6,10 +6,9 @@ import {
 import { LoginScreen } from "@/components/LoginScreen";
 
 import AccountSettings from "@/components/Owner/AccountPage";
-import { KPIPage } from "@/components/Owner/pages/KPIsPage";
 import { OwnerLayout } from "@/components/Owner/layout";
 import OwnerDashboard from "@/components/Owner/DashboardPage";
-import OwnerUsers from "@/components/Owner/OwnerUsers";
+
 import { SalesDashboard } from "@/components/sales/saleDashboard";
 import { SalesKPI } from "@/components/sales/saleKpi";
 import { SalesAccount } from "@/components/sales/salesAccount";
@@ -28,7 +27,9 @@ import { AccountantAccount } from "@/components/Accountant/AccountantAccount";
 import { MonthlyUploads } from "@/components/Accountant/MonthlyUploads";
 import { AttendanceManagement } from "@/components/Accountant/AttendenceManagment";
 import { SalesReports } from "@/components/Accountant/AccountantSalesPage";
-import { OnwerScoringForm } from "@/components/Owner/pages/ScoringPage";
+import { OwnerScoringForm } from "@/components/Owner/ScoringPage";
+import { OwnerReport } from "@/components/Owner/Reports";
+import { StaffReportView } from "@/components/Owner/reports/staffReports";
 function MainRouter() {
     const router = createBrowserRouter([
         {
@@ -53,11 +54,22 @@ function MainRouter() {
                     ),
                     children: [
                         { path: "dashboard", element: <OwnerDashboard /> },
-                        { path: "kpis", element: <KPIPage /> },
-                        { path: "scoring", element: <OnwerScoringForm/> },
-                        { path: "walkouts", element: <WalkOutManagement /> },
+                        {
+                            path: "reports",
+                            children: [
+                                {
+                                    index: true,
+                                    element: <OwnerReport />,
+                                },
+                                {
+                                    path: "staff",
+                                    element: <StaffReportView />,
+                                },
+                            ],
+                        },
+
+                        { path: "scoring", element: <OwnerScoringForm /> },
                         { path: "account", element: <AccountSettings /> },
-                        { path: "users", element: <OwnerUsers /> },
                     ],
                 },
 

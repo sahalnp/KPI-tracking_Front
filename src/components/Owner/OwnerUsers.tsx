@@ -468,7 +468,7 @@ const OwnerUsers: React.FC = () => {
                                             <span>{u.floor.name}</span>
                                         </div>
                                     )}
-                                    {u.section !== "N/A" && (
+                                    {u.section  && (
                                         <div className="flex items-center gap-2">
                                             <MapPin size={14} />
                                             <span>{u.section}</span>
@@ -716,23 +716,7 @@ const OwnerUsers: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="flex items-center justify-between mb-2">
-                    <h1 className="text-xl font-semibold text-gray-900">
-                        Staff Management
-                    </h1>
-                </div>
-                <p className="text-sm text-gray-600">
-                    Manage your team members and their information
-                </p>
-            </div>
 
-            {/* <div className="px-4 py-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatBlock label="Total Users" value={totalUser} color="border-blue-500" />
-                <StatBlock label="Active Users" value={totalActive} color="border-green-500" />
-                <StatBlock label="Inactive Users" value={totalInactive} color="border-orange-500" />
-                <StatBlock label="Deleted Users" value={totalDeleted} color="border-red-500" />
-            </div> */}
             <div className="px-4 py-6 grid grid-cols-3 gap-3">
                 <Card>
                     <CardContent className="p-4 text-center">

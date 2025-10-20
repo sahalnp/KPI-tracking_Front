@@ -11,6 +11,9 @@ import {
     Users,
     LayoutDashboard,
     Target,
+    HomeIcon,
+    BarChart,
+    Settings,
 } from "lucide-react";
 
 interface BottomNavProps {
@@ -23,14 +26,14 @@ function BottomNav({ userRole, currentPage, onNavigate }: BottomNavProps) {
     const supervisorTabs = [
         {
             id: "dashboard",
-            label: "Dashboard",
-            icon: LayoutDashboard,
+            label: "Home",
+            icon: HomeIcon,
             to: "/owner/dashboard",
         },
         { id: "scoring", label: "Scoring", icon: ClipboardCheck },
-        { id: "kpis", label: "KPIs", icon: Target, to: "/owner/kpis" },
-        { id: "users", label: "Users", icon: Users, to: "/owner/users" },
-        { id: "account", label: "Account", icon: User, to: "/owner/account" },
+        { id: "reports", label: "Reports", icon: BarChart, to: "/owner/reports" },
+
+        { id: "account", label: "Settings", icon: Settings, to: "/owner/account" },
     ];
 
     const tabs = userRole === "Owner" ? supervisorTabs : [];

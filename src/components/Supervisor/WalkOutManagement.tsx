@@ -224,7 +224,6 @@ export function WalkOutManagement() {
             setItemLoading(false);
         }
     }, 400);
-    
 
     const fetchTypes = debounce(async (q: string) => {
         if (!q.trim()) {
@@ -345,8 +344,8 @@ export function WalkOutManagement() {
                     staffId: selectedStaff.id,
                 }
             );
-   
-            if (data?.success )  {
+
+            if (data?.success) {
                 const newWalkout = data.walkout;
 
                 setEntries((prev) => [newWalkout, ...prev]);
@@ -354,8 +353,12 @@ export function WalkOutManagement() {
                 setWeekCount((prev) => prev + 1);
                 if (newWalkout.priority === "High")
                     setPriorityCount((prev) => prev + 1);
-                
-                  pushActivity('Added', finalItemName, selectedPriority || 'Normal');
+
+                pushActivity(
+                    "Added",
+                    finalItemName,
+                    selectedPriority || "Normal"
+                );
                 setSelectedPriority("");
                 setQuery("");
                 setItemQuery("");
@@ -366,7 +369,6 @@ export function WalkOutManagement() {
                 setShowAddModal(false);
                 toast.success("Walk-out recorded successfully!");
             }
-
         } catch (err: any) {
             if (err.response?.status === 401) {
                 localStorage.removeItem("accesstoken");
@@ -430,7 +432,11 @@ export function WalkOutManagement() {
                             : entry
                     )
                 );
-                  pushActivity('Edited', selectedItem.name, selectedPriority || 'Normal');
+                pushActivity(
+                    "Edited",
+                    selectedItem.name,
+                    selectedPriority || "Normal"
+                );
 
                 setShowEditModal(false);
                 setEditingEntry(null);
@@ -441,7 +447,7 @@ export function WalkOutManagement() {
                 setSelectedStaff(null);
                 setSelectedItem(null);
                 setSelectedType(null);
-                
+
                 toast.success("Walk-out updated successfully!");
             }
         } catch (err: any) {
@@ -458,34 +464,41 @@ export function WalkOutManagement() {
             }
         }
     };
-/* ---------- DELETE ---------- */
-const deleteWalkout = async () => {
-  if (!deletingId) return;
-  try {
-    const deleted = entries.find(e => e.id === deletingId);
-    await axiosInstance.delete(`/supervisor/dltWalkt/${deletingId}`);
+    /* ---------- DELETE ---------- */
+    const deleteWalkout = async () => {
+        if (!deletingId) return;
+        try {
+            const deleted = entries.find((e) => e.id === deletingId);
+            await axiosInstance.delete(`/supervisor/dltWalkt/${deletingId}`);
 
-    setEntries(prev => prev.filter(e => e.id !== deletingId));
-    setTodayCount(prev => Math.max(0, prev - 1));
-    setWeekCount(prev => Math.max(0, prev - 1));
-    if (deleted?.priority === 'High') setPriorityCount(prev => Math.max(0, prev - 1));
+            setEntries((prev) => prev.filter((e) => e.id !== deletingId));
+            setTodayCount((prev) => Math.max(0, prev - 1));
+            setWeekCount((prev) => Math.max(0, prev - 1));
+            if (deleted?.priority === "High")
+                setPriorityCount((prev) => Math.max(0, prev - 1));
 
-    pushActivity('Deleted', deleted?.itemName?.name || 'N/A', deleted?.priority || 'Normal');
+            pushActivity(
+                "Deleted",
+                deleted?.itemName?.name || "N/A",
+                deleted?.priority || "Normal"
+            );
 
-    toast.success('Walk-out deleted');
-  } catch (err: any) {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('accesstoken');
-      localStorage.removeItem('refreshtoken');
-      await logoutSupervisor(); dispatch(clearUser());
-      toast.error('Session expired');
-    } else {
-      toast.error(err.response?.data?.message || 'Delete failed');
-    }
-  } finally {
-    setShowDeleteModal(false); setDeletingId(null);
-  }
-};
+            toast.success("Walk-out deleted");
+        } catch (err: any) {
+            if (err.response?.status === 401) {
+                localStorage.removeItem("accesstoken");
+                localStorage.removeItem("refreshtoken");
+                await logoutSupervisor();
+                dispatch(clearUser());
+                toast.error("Session expired");
+            } else {
+                toast.error(err.response?.data?.message || "Delete failed");
+            }
+        } finally {
+            setShowDeleteModal(false);
+            setDeletingId(null);
+        }
+    };
 
     /* ---------- render ---------- */
     if (loading) return <LoadingSpinner />;
@@ -493,45 +506,6 @@ const deleteWalkout = async () => {
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
             <div className="max-w-7xl mx-auto p-4 space-y-4">
-                {/* header */}
-                <div className="bg-white rounded-lg shadow-sm p-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <h1 className="text-xl font-semibold text-gray-900">
-                            Walk-Out Management
-                        </h1>
-                        <motion.button
-                            onClick={() => setShowAddModal(true)}
-                            whileTap={{ scale: 0.95 }}
-                            className="hidden sm:flex items-center bg-[#FF3F33] hover:bg-[#E6362A] text-white p-2 rounded-lg transition-colors"
-                        >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Staff
-                        </motion.button>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                        Track customer departures
-                    </p>
-                </div>
-                {/* <div className="bg-white rounded-lg shadow-sm p-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <h1 className="text-xl font-semibold text-gray-900">
-                           
-                        </h1>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                className="hidden sm:flex items-center gap-2 bg-[#FF3F33] hover:bg-[#E6362A]"
-                                onClick={() => setShowAddModal(true)}
-                            >
-                                <Plus className="h-4 w-4" /> Add Walkout
-                            </Button>
-                            <UserX className="h-6 w-6 text-[#FF3F33]" />
-                        </div>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                        
-                    </p>
-                </div> */}
-
                 {/* stats */}
                 <div className="grid grid-cols-3 gap-3">
                     <Card className="bg-white">
@@ -563,7 +537,6 @@ const deleteWalkout = async () => {
                         </CardContent>
                     </Card>
                 </div>
-
 
                 {/* view toggles */}
                 <div className="flex gap-2">
@@ -617,12 +590,44 @@ const deleteWalkout = async () => {
                     </div>
                 )}
 
-                {/* content */}
                 {entries.length === 0 ? (
-                    <Card className="bg-white mt-4 text-center p-6">
-                        <UserX className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                        <p className="text-gray-500">No walk-outs found</p>
-                    </Card>
+                    viewMode === "card" ? (
+                        <Card className="bg-white mt-4 p-8 rounded-xl shadow-sm">
+                            <div className="flex flex-col items-center">
+                                <UserX className="h-14 w-14 mb-3 text-gray-300" />
+                                <p className="text-sm text-gray-500">No walk-outs found</p>
+                            </div>
+                        </Card>
+                    ) : (
+                        <Card className="mt-4">
+                            <CardContent className="p-0">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="text-left p-3">Date</th>
+                                                <th className="text-left p-3">Item/Type</th>
+                                                <th className="text-left p-3">Staff/Section</th>
+                                                <th className="text-left p-3">Description</th>
+                                                <th className="text-left p-3">Priority</th>
+                                                <th className="text-left p-3">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colSpan={6} className="p-8">
+                                                    <div className="flex flex-col items-center">
+                                                        <UserX className="h-14 w-14 mb-3 text-gray-300" />
+                                                        <p className="text-sm text-gray-500">No walk-outs found</p>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )
                 ) : viewMode === "card" ? (
                     <div className="space-y-3 mt-4">
                         {entries.map((entry) => (
@@ -704,124 +709,100 @@ const deleteWalkout = async () => {
                         ))}
                     </div>
                 ) : (
-                    <>
-                        <Card className="mt-4">
-                            <CardContent className="p-0">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-gray-50">
-                                            <tr>
-                                                <th className="text-left p-3">
-                                                    Date
-                                                </th>
-                                                <th className="text-left p-3">
-                                                    Item/Type
-                                                </th>
-                                                <th className="text-left p-3">
-                                                    Staff/Section
-                                                </th>
-                                                <th className="text-left p-3">
-                                                    Description
-                                                </th>
-                                                <th className="text-left p-3">
-                                                    Priority
-                                                </th>
-                                                <th className="text-left p-3">
-                                                    Actions
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-200">
-                                            {entries.map((entry) => (
-                                                <tr key={entry.id}>
-                                                    <td className="p-3">
-                                                        {/* <div className="text-xs text-gray-500">
-                                                            {timeAgo(
-                                                                entry.created_at
-                                                            )}
-                                                        </div> */}
-                                                        <div className="text-xs">
-                                                            {new Date(
-                                                                entry.created_at
-                                                            ).toLocaleDateString()}
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-3 font-medium">
-                                                        {entry.itemName.name
-                                                            ?.name ||
-                                                            entry.itemName
-                                                                ?.name}
-                                                        /
-                                                        {entry.type.name
-                                                            ?.name ||
-                                                            entry.type?.name}
-                                                    </td>
-                                                    <td className="p-3">
-                                                        <div className="font-medium text-xs">
-                                                            {entry.staff.name}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500">
-                                                            {
-                                                                entry.staff
-                                                                    .section
+                    <Card className="mt-4">
+                        <CardContent className="p-0">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="text-left p-3">Date</th>
+                                            <th className="text-left p-3">Item/Type</th>
+                                            <th className="text-left p-3">Staff/Section</th>
+                                            <th className="text-left p-3">Description</th>
+                                            <th className="text-left p-3">Priority</th>
+                                            <th className="text-left p-3">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {entries.map((entry) => (
+                                            <tr key={entry.id}>
+                                                <td className="p-3">
+                                                    <div className="text-xs">
+                                                        {new Date(
+                                                            entry.created_at
+                                                        ).toLocaleDateString()}
+                                                    </div>
+                                                </td>
+                                                <td className="p-3 font-medium">
+                                                    {entry.itemName?.name || "N/A"}/
+                                                    {entry.type?.name || "N/A"}
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="font-medium text-xs">
+                                                        {entry.staff.name}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {entry.staff.section}
+                                                    </div>
+                                                </td>
+                                                <td className="p-3 max-w-xs truncate">
+                                                    {entry.description}
+                                                </td>
+                                                <td className="p-3">
+                                                    <Badge
+                                                        className={`${getSeverityColor(
+                                                            entry.priority
+                                                        )} capitalize text-xs`}
+                                                    >
+                                                        {entry.priority}
+                                                    </Badge>
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() =>
+                                                                handleEdit(
+                                                                    entry
+                                                                )
                                                             }
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-3 max-w-xs truncate">
-                                                        {entry.description}
-                                                    </td>
-                                                    <td className="p-3">
-                                                        <Badge
-                                                            className={`${getSeverityColor(
-                                                                entry.priority
-                                                            )} capitalize text-xs`}
+                                                            className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors text-blue-600"
+                                                            title="Edit"
                                                         >
-                                                            {entry.priority}
-                                                        </Badge>
-                                                    </td>
-                                                    <td className="p-3">
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                onClick={() =>
-                                                                    handleEdit(
-                                                                        entry
-                                                                    )
-                                                                }
-                                                                className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors text-blue-600"
-                                                                title="Edit"
-                                                            >
-                                                                <Edit
-                                                                    size={16}
-                                                                />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => {
-                                                                    setDeletingId(
-                                                                        entry.id
-                                                                    );
-                                                                    setShowDeleteModal(
-                                                                        true
-                                                                    );
-                                                                }}
-                                                                className="p-1.5 hover:bg-red-50 rounded-lg transition-colors text-red-600"
-                                                                title="Delete"
-                                                            >
-                                                                <Trash2
-                                                                    size={16}
-                                                                />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </>
+                                                            <Edit
+                                                                size={16}
+                                                            />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setDeletingId(
+                                                                    entry.id
+                                                                );
+                                                                setShowDeleteModal(
+                                                                    true
+                                                                );
+                                                            }}
+                                                            className="p-1.5 hover:bg-red-50 rounded-lg transition-colors text-red-600"
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2
+                                                                size={16}
+                                                            />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
             </div>
+
+
+
+            
 
             {/* floating add button mobile */}
             <button
@@ -1229,7 +1210,7 @@ const deleteWalkout = async () => {
                                 </button>
                             </div>
 
-                         <form
+                            <form
                                 onSubmit={editWalkout}
                                 className="p-6 grid gap-5"
                             >

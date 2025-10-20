@@ -12,9 +12,10 @@ import {
     Search,
     Loader,
     Edit,
-    Target,
     Grid,
     Filter,
+    AlertCircle,
+    Info,
 } from "lucide-react";
 import { debounce } from "lodash";
 import { axiosInstance } from "@/api/axios";
@@ -40,27 +41,19 @@ import { Card, CardContent } from "@/components/ui/card";
 interface KPI {
     id: number;
     name: string;
-    target: number;
     weight: number;
     frequency: "daily" | "weekly" | "monthly";
-    max_points: number;
-    status?: boolean;
+    max_points?: number;
     isDlt?: boolean;
+    created_at:Date;
 }
 
 interface CreateKPIPayload {
     name: string;
-    target: number;
     weight: number;
     frequency: "daily" | "weekly" | "monthly";
-    max_points: number;
 }
 
-interface APIResponse {
-    kpis?: KPI[];
-    data?: KPI[];
-    message?: string;
-}
 
 /* ---------- helper ---------- */
 const fmtDate = (d: string) => (d ? new Date(d).toLocaleDateString() : "N/A");
@@ -91,17 +84,12 @@ export function KPIPage() {
     );
     const [formData, setFormData] = useState({
         name: "",
-        target: "",
         weight: "",
-        max_points: "",
     });
 
     // Filter states
-    const [searchTerm, setSearchTerm] = useState("");
     const [filterSection, setFilterSection] = useState("all");
-    const [filterStatus, setFilterStatus] = useState<
-        "all" | "active" | "inactive"
-    >("all");
+
     const [sections, setSections] = useState<string[]>([]);
 
     const dispatch = useDispatch();
@@ -148,35 +136,6 @@ export function KPIPage() {
         fetchKPIs();
     }, []);
 
-    const handleToggleStatus = async (
-        kpiId: number,
-        currentStatus: boolean,
-        kpiName: string
-    ) => {
-        try {
-            await axiosInstance.patch(`/owner/kpi/${kpiId}/toggle`, {
-                status: !currentStatus,
-            });
-
-            // ✅ Update state locally
-            setFilteredKPIs((prev) =>
-                prev.map((item) =>
-                    item.id === kpiId
-                        ? { ...item, status: !currentStatus }
-                        : item
-                )
-            );
-
-            toast.success(
-                `KPI "${kpiName}" is now ${
-                    !currentStatus ? "Active" : "Inactive"
-                }`
-            );
-        } catch (err) {
-            toast.error("Failed to update status. Try again.");
-            console.error(err);
-        }
-    };
 
     /* ======  search / filter  ====== */
     useEffect(() => {
@@ -205,12 +164,10 @@ export function KPIPage() {
         if (item) {
             setFormData({
                 name: item.name,
-                target: String(item.target),
                 weight: String(item.weight),
-                max_points: String(item.max_points),
             });
         } else {
-            setFormData({ name: "", target: "", weight: "", max_points: "" });
+            setFormData({ name: "", weight: "" });
         }
         setShowModal(true);
     };
@@ -250,37 +207,27 @@ export function KPIPage() {
     const handleSave = async () => {
         const payload: CreateKPIPayload = {
             name: formData.name.trim(),
-            target: Number(formData.target),
             weight: Number(formData.weight),
             frequency,
-            max_points: parseFloat(formData.max_points),
         };
 
         // Validation
-        if (
-            !payload.name ||
-            !payload.target ||
-            !payload.weight ||
-            !payload.max_points
-        ) {
-            toast.error("Please fill all required fields");
-            return;
-        }
+        if (!payload.name || payload.weight === undefined) {
+    toast.error("Please fill all required fields");
+    return;
+}
+
+if (payload.weight < 0 || payload.weight > 100) {
+    toast.error("Enter weight");
+    return;
+}
 
         if (payload.weight < 0 || payload.weight > 100) {
             toast.error("Weight must be between 0-100");
             return;
         }
 
-        if (payload.target <= 0) {
-            toast.error("Target must be greater than 0");
-            return;
-        }
 
-        if (payload.max_points <= 0) {
-            toast.error("Max points must be greater than 0");
-            return;
-        }
 
         setIsSubmitting(true);
         try {
@@ -329,125 +276,105 @@ export function KPIPage() {
             <div className="text-sm text-gray-600 mt-1">{label}</div>
         </motion.div>
     );
+const CardView = () => (
+  <div className="p-4 pb-24">
+    {filteredKPIs.length === 0 ? (
+      <div className="text-center py-10 text-gray-500 flex flex-col items-center gap-2">
+        <AlertCircle size={36} className="text-gray-400" />
+        <span>No KPIs found.</span>
+      </div>
+    ) : (
+      <>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredKPIs.slice(0, visibleCount).map((k) => (
+            <motion.div
+              key={k.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white border border-gray-300 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+            >
+              {/* ── Header ── */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+                <h3 className="font-semibold text-gray-800 text-sm truncate">
+                  🏅 {k.name}
+                </h3>
+                <Badge className="bg-blue-100 text-blue-700 capitalize text-xs">
+                  {k.frequency}
+                </Badge>
+              </div>
 
-    const CardView = () => (
-        <div className="p-4 pb-24">
-            {filteredKPIs.length === 0 ? (
-                <div className="text-center py-10 text-gray-500 flex flex-col items-center gap-2">
-                    <Target size={36} className="text-gray-400" />
-                    <span>No KPIs found.</span>
+              {/* ── Body ── */}
+              <div className="px-4 py-3 border-b border-gray-200 text-sm text-gray-800">
+                <div className="flex justify-between py-1">
+                  <span className="text-gray-500">Weight:</span>
+                  <span className="font-semibold">{k.weight}%</span>
                 </div>
-            ) : (
-                <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {filteredKPIs.slice(0, visibleCount).map((k) => (
-                            <motion.div
-                                key={k.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-white rounded-xl shadow hover:shadow-lg p-5 border border-gray-100"
-                            >
-                                {/* Top row: Name + Badge + Actions */}
-                                <div className="flex justify-between items-center mb-3">
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="font-semibold text-lg text-gray-800 truncate">
-                                            {k.name}
-                                        </h3>
-                                        <Badge className="bg-blue-100 text-blue-700 capitalize">
-                                            {k.frequency}
-                                        </Badge>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => {
-                                                setSelectedItem(k);
-                                                setShowDetailModal(true);
-                                            }}
-                                            className="p-2 text-gray-400 hover:text-green-500"
-                                        >
-                                          
-                                        </button>
-                                        <button
-                                            onClick={() => openModal(k)}
-                                            className="p-2 text-gray-400 hover:text-blue-500"
-                                        >
-                                            <Edit size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setKpiToDelete(k);
-                                                setShowDeleteModal(true);
-                                            }}
-                                            className="p-2 text-gray-400 hover:text-red-500"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-gray-500">Point:</span>
+                  <span className="font-semibold">{k.max_points}</span>
+                </div>
+              </div>
 
-                                {/* Middle: Other Details */}
-                                <div className="space-y-2 text-sm text-gray-600 mb-3">
-                                    <div className="flex items-center gap-2">
-                                        <span>Target:</span>
-                                        <span className="font-bold">
-                                            {k.target}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span>Weight:</span>
-                                        <span className="font-bold">
-                                            {k.weight}%
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span>Max Points:</span>
-                                        <span className="font-bold">
-                                            {k.max_points}
-                                        </span>
-                                    </div>
-                                </div>
+              {/* ── Footer ── */}
+              <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-200">
+                Created: (k.created_at)
+              </div>
 
-                                <div className="flex justify-end pt-2 border-t border-gray-100">
-                                    <label className="flex items-center gap-2 text-sm text-gray-600">
-                                        <span>
-                                            {k.status ? "Active" : "Inactive"}
-                                        </span>
-                                        <Switch
-                                            checked={k.status ?? true}
-                                            onCheckedChange={() =>
-                                                handleToggleStatus(
-                                                    k.id,
-                                                    k.status ?? true,
-                                                    k.name
-                                                )
-                                            }
-                                            className="data-[state=checked]:bg-red-500 data-[state=unchecked]:bg-gray-300"
-                                        />
-                                    </label>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                    {visibleCount < filteredKPIs.length && (
-                        <div className="text-center mt-6">
-                            <button
-                                onClick={loadMore}
-                                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                            >
-                                Load More
-                            </button>
-                        </div>
-                    )}
-                </>
-            )}
+              {/* ── Actions ── */}
+              <div className="px-4 py-2 flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedItem(k);
+                    setShowDetailModal(true);
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-green-500 transition-colors"
+                  title="View Details"
+                >
+                  <Info size={16} />
+                </button>
+                <button
+                  onClick={() => openModal(k)}
+                  className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors"
+                  title="Edit KPI"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => {
+                    setKpiToDelete(k);
+                    setShowDeleteModal(true);
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                  title="Delete KPI"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </motion.div>
+          ))}
         </div>
-    );
+
+        {visibleCount < filteredKPIs.length && (
+          <div className="text-center mt-6">
+            <button
+              onClick={loadMore}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+            >
+              Load More
+            </button>
+          </div>
+        )}
+      </>
+    )}
+  </div>
+);
+
 
     const ListView = () => (
         <div className="p-4 pb-24">
             {filteredKPIs.length === 0 ? (
                 <div className="text-center py-10 text-gray-500 flex flex-col items-center gap-2">
-                    <Target size={36} className="text-gray-400" />
+                    <AlertCircle size={36} className="text-gray-400" />
                     <span>No KPIs found.</span>
                     {searchQuery && (
                         <button
@@ -471,21 +398,17 @@ export function KPIPage() {
                                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                                             KPI Name
                                         </th>
-                                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
-                                            Target
-                                        </th>
+                                        
                                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                                             Weight
                                         </th>
                                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
-                                            Max Points
+                                             Points
                                         </th>
                                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                                             Frequency
                                         </th>
-                                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
-                                            Status
-                                        </th>
+                                       
                                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                                             Actions
                                         </th>
@@ -505,9 +428,7 @@ export function KPIPage() {
                                                 >
                                                     {k.name}
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-gray-600">
-                                                    {k.target}
-                                                </td>
+                                              
                                                 <td className="px-4 py-3 text-sm text-gray-600">
                                                     {k.weight}%
                                                 </td>
@@ -517,27 +438,7 @@ export function KPIPage() {
                                                 <td className="px-4 py-3 text-sm text-gray-600 capitalize">
                                                     {k.frequency}
                                                 </td>
-                                                <td className="px-4 py-3">
-                                                    <button
-                                                        onClick={() =>
-                                                            handleToggleStatus(
-                                                                k.id,
-                                                                k.status ??
-                                                                    true,
-                                                                k.name
-                                                            )
-                                                        }
-                                                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                                                            k.status
-                                                                ? "bg-green-100 text-green-700 hover:bg-green-200"
-                                                                : "bg-red-100 text-red-700 hover:bg-red-200"
-                                                        }`}
-                                                    >
-                                                        {k.status
-                                                            ? "Active"
-                                                            : "Inactive"}
-                                                    </button>
-                                                </td>
+                                               
                                                 <td className="px-4 py-3 flex gap-2">
                                                     <button
                                                         onClick={() => {
@@ -620,48 +521,7 @@ export function KPIPage() {
     /* ======  main render  ====== */
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* header */}
-            <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="flex items-center justify-between mb-2">
-                    <h1 className="text-xl font-semibold text-gray-900">
-                        KPI Management
-                    </h1>
-                </div>
-                <p className="text-sm text-gray-600">
-                    Track and manage your Key Performanc.
-                </p>
-            </div>
-
-            {/* stat blocks */}
-            {/* <div className="px-4 py-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatBlock
-                    label="Total KPIs"
-                    value={kpiList.length}
-                    color="border-blue-500"
-                />
-                <StatBlock
-                    label="Daily"
-                    value={
-                        kpiList.filter((k) => k.frequency === "daily").length
-                    }
-                    color="border-green-500"
-                />
-                <StatBlock
-                    label="Weekly"
-                    value={
-                        kpiList.filter((k) => k.frequency === "weekly").length
-                    }
-                    color="border-orange-500"
-                />
-                <StatBlock
-                    label="Monthly"
-                    value={
-                        kpiList.filter((k) => k.frequency === "monthly").length
-                    }
-                    color="border-purple-500"
-                />
-            </div> */}
-            {/* ----------  2×2 quick-stats cards (like 2nd code) ---------- */}
+ 
 <div className="px-4 py-6 grid grid-cols-3 gap-3">
   <Card>
     <CardContent className="p-4 text-center">
@@ -765,24 +625,11 @@ export function KPIPage() {
             </SelectContent>
           </Select>
 
-          {/* Status filter */}
-          <Select
-            value={filterStatus}
-            onValueChange={(v: "all" | "active" | "inactive") => setFilterStatus(v)}
-          >
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Filter by Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
+       
 
           {/* Clear */}
-          {(searchQuery || filterSection !== "all" || filterStatus !== "all") && (
-            <Button variant="outline" onClick={() => { setSearchQuery(""); setFilterSection("all"); setFilterStatus("all"); }}>
+          {(searchQuery || filterSection !== "all") && (
+            <Button variant="outline" onClick={() => { setSearchQuery(""); setFilterSection("all"); }}>
               Clear Filters
             </Button>
           )}
@@ -838,20 +685,12 @@ export function KPIPage() {
                                     <span className="font-medium">Name:</span>
                                     <span>{selectedItem.name}</span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="font-medium">Target:</span>
-                                    <span>{selectedItem.target}</span>
-                                </div>
+                                
                                 <div className="flex justify-between items-center">
                                     <span className="font-medium">Weight:</span>
                                     <span>{selectedItem.weight}%</span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="font-medium">
-                                        Max Points:
-                                    </span>
-                                    <span>{selectedItem.max_points}</span>
-                                </div>
+                               
                                 <div className="flex justify-between items-center">
                                     <span className="font-medium">
                                         Frequency:
@@ -860,20 +699,7 @@ export function KPIPage() {
                                         {selectedItem.frequency}
                                     </span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="font-medium">Status:</span>
-                                    <Badge
-                                        className={
-                                            selectedItem.status
-                                                ? "bg-green-100 text-green-700"
-                                                : "bg-red-100 text-red-700"
-                                        }
-                                    >
-                                        {selectedItem.status
-                                            ? "Active"
-                                            : "Inactive"}
-                                    </Badge>
-                                </div>
+                               
                             </div>
                         </motion.div>
                     </motion.div>
@@ -996,30 +822,7 @@ export function KPIPage() {
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="flex flex-col gap-1">
-                                        <Label htmlFor="kpi-target">
-                                            Target Score{" "}
-                                            <span className="text-red-500">
-                                                *
-                                            </span>
-                                        </Label>
-                                        <Input
-                                            id="kpi-target"
-                                            type="number"
-                                            step="0.1"
-                                            min="0.1"
-                                            placeholder="0"
-                                            value={formData.target}
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    target: e.target.value,
-                                                })
-                                            }
-                                            required
-                                            disabled={isSubmitting}
-                                        />
-                                    </div>
+                                    
                                     <div className="flex flex-col gap-1">
                                         <Label htmlFor="kpi-weight">
                                             Weight (%){" "}
@@ -1033,7 +836,7 @@ export function KPIPage() {
                                             min="0"
                                             max="100"
                                             step="1"
-                                            placeholder="0-100"
+                                            placeholder="Enter weight"
                                             value={formData.weight}
                                             onChange={(e) =>
                                                 setFormData({
@@ -1076,28 +879,7 @@ export function KPIPage() {
                                     </Select>
                                 </div>
 
-                                <div className="flex flex-col gap-1">
-                                    <Label htmlFor="kpi-max-points">
-                                        Max Points{" "}
-                                        <span className="text-red-500">*</span>
-                                    </Label>
-                                    <Input
-                                        id="kpi-max-points"
-                                        type="number"
-                                        step="0.1"
-                                        min="0.1"
-                                        placeholder="0"
-                                        value={formData.max_points}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                max_points: e.target.value,
-                                            })
-                                        }
-                                        required
-                                        disabled={isSubmitting}
-                                    />
-                                </div>
+                                
 
                                 {/* actions */}
                                 <div className="flex gap-3 pt-4 border-t">
