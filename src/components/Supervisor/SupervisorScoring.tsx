@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-    Building2,
     User,
     Save,
     Star,
     Phone,
     Users,
-    ClipboardList,
     AlertCircle,
+    MapPin,
+    Briefcase,
+    Search,
+    Filter,
+    X,
+    ChevronUp,
+    ChevronDown,
 } from "lucide-react";
 import {
     Card,
@@ -16,235 +21,249 @@ import {
     CardDescription,
     CardHeader,
     CardTitle,
-} from "../ui/card";
-import { Button } from "../ui/button";
-import { Label } from "../ui/label";
-import { Textarea } from "../ui/textarea";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "../ui/select";
-import { Badge } from "../ui/badge";
-import { toast } from "sonner";
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { LoadingSpinner } from "@/components/ui/spinner";
 import { axiosInstance } from "@/api/axios";
-import { useDispatch } from "react-redux";
-import { clearUser } from "@/features/UserSlice";
 import { logoutSupervisor } from "@/lib/logoutApi";
-import { LoadingSpinner } from "../ui/spinner";
-import { pushActivity } from "@/lib/setRecentActivity";
+import { clearUser } from "@/features/UserSlice";
+import { useDispatch } from "react-redux";
+import { toast } from "sonner";
 
-interface ScoreData {
-    [key: string]: {
-        score: number;
-        comment: string;
-    };
-}
+const isToday = (iso?: string) => {
+    if (!iso) return false;
+    const d = new Date(iso);
+    const t = new Date();
+    return d.toDateString() === t.toDateString();
+};
 
-export function StaffScoringForm() {
-    const [selectedStaff, setSelectedStaff] = useState("");
+export function SupervisorScoringForm() {
+    const [view, setView] = useState<"list" | "scoring">("list");
     const [staff, setStaff] = useState<any[]>([]);
-    const [scores, setScores] = useState<ScoreData>({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [kpis, setKpis] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
-    const dispatch = useDispatch();
-    const [kpisLoading, setKpisLoading] = useState(false);
+    const [filteredStaff, setFilteredStaff] = useState<any[]>([]);
+    const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
 
-    const initializeScores = () => {
-        const initialScores: ScoreData = {};
-        kpis.forEach((criteria) => {
-            initialScores[criteria.id] = { score: 0, comment: "" };
-        });
-        setScores(initialScores);
-    };
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [filterOpen, setFilterOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedRole, setSelectedRole] = useState("");
+
+    const [kpis, setKpis] = useState<any[]>([]);
+    const [scores, setScores] = useState<any>({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [loading, setLoading] = useState(true); // global first load
+    const [loadingScore, setLoadingScore] = useState(false);
+    const dispatch = useDispatch();
+     const hasKPIs = Array.isArray(kpis) && kpis.length > 0;
+
+    /* --------------------  Derived  -------------------- */
+    const roles = [...new Set(staff.map((s: any) => s.role))];
 
     useEffect(() => {
-        setLoading(true);
-        const fetchData = async () => {
+        (async () => {
             try {
-                const res = await axiosInstance.get(
-                    "/supervisor/staff-scoring"
-                );
-                setStaff(res.data.staffs);
+                const [usersRes, kpiRes] = await Promise.all([
+                    axiosInstance.get<any>("/supervisor/staff-scoring"),
+                    axiosInstance.get<any[]>("/supervisor/scoreKPI"),
+                ]);
+
+                setStaff(usersRes.data.usersRes || []);
+                setKpis((kpiRes.data as any).kpis || []);
             } catch (err: any) {
+                console.error("Error fetching data:", err);
                 if (err.response?.status === 401) {
-                    localStorage.removeItem("accesstoken");
-                    localStorage.removeItem("refreshtoken");
-                    await logoutSupervisor();
+                    const response: any = await logoutSupervisor();
+                    if (response?.success) {
+                        localStorage.removeItem("accessToken");
+                        localStorage.removeItem("refreshToken");
                     dispatch(clearUser());
                     toast.error("Session Expired. Please login again");
                 } else {
-                    toast.error("Internal Server Error");
+                        console.error("Internal server error");
+                        toast.error("Something went wrong. Please try again.");
                 }
+                } else {
+                    toast.error(
+                        err.response?.data?.message ||
+                            "Failed to load data. Please try again."
+                    );
             }
+            } finally {
             setLoading(false);
-        };
-
-        fetchData();
+            }
+        })();
     }, []);
 
+    /* --------------------  Filter logic  -------------------- */
     useEffect(() => {
-        if (!selectedStaff) {
-            // Reset KPIs when no staff is selected
-            setKpis([]);
-            return;
-        }
+        let f = staff;
+        if (searchQuery)
+            f = f.filter(
+                (s) =>
+                    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    s.mobile.includes(searchQuery)
+            );
+        if (selectedRole) f = f.filter((s) => s.role === selectedRole);
+        setFilteredStaff(f);
+    }, [searchQuery, selectedRole, staff]);
 
-        setKpisLoading(true);
-        const fetchKpi = async () => {
-            try {
-                const res = await axiosInstance.get("/supervisor/getKpis");
-                console.log("KPI Response:", res.data.kpis); // Debug log
-                setKpis(res.data.kpis.kpis || []);
+    const initialiseScores = () => {
+        if (!Array.isArray(kpis) || !kpis.length) return; // ← guard
+        const base: any = {};
+        kpis.forEach((k) => (base[k.id] = { score: 0, comment: "" }));
+        setScores(base);
+    };
+
+    const handleStaffClick = async (member: any) => {
+        setSelectedStaff(member);
+        setLoadingScore(true);
+        try {
+            if (member.isScored) {
+                const { data } = await axiosInstance.get<any>(
+                    `/supervisor/userscore/${member.id}`
+                );
+                console.log(data.kpis, "jhjklhjkhjkl");
+
+                // Transform the kpis array into scores object format
+                const transformedScores: any = {};
+                if (data.kpis && Array.isArray(data.kpis)) {
+                    data.kpis.forEach((kpi: any) => {
+                        transformedScores[kpi.kpi_id] = {
+                            score: kpi.score || 0,
+                            comment: kpi.comment || "",
+                        };
+                    });
+                }
+                setScores(transformedScores);
+            } else {
+                initialiseScores();
+            }
+            setView("scoring");
             } catch (err: any) {
                 if (err.response?.status === 401) {
-                    localStorage.removeItem("accesstoken");
-                    localStorage.removeItem("refreshtoken");
-                    await logoutSupervisor();
+                const response: any = await logoutSupervisor();
+                if (response?.success) {
+                    localStorage.removeItem("accessToken");
+                    localStorage.removeItem("refreshToken");
                     dispatch(clearUser());
                     toast.error("Session Expired. Please login again");
                 } else {
-                    toast.error("Internal Server Error");
+                    console.error("Internal server error");
+                    toast.error("Something went wrong. Please try again.");
                 }
-                setKpis([]); // Set empty array on error
+                }
             } finally {
-                setKpisLoading(false);
-            }
-        };
-        fetchKpi();
-    }, [selectedStaff]);
-
-    // Initialize scores after KPIs are loaded
-    useEffect(() => {
-        if (selectedStaff && kpis && kpis.length > 0) {
-            initializeScores();
+            setLoadingScore(false);
         }
-    }, [selectedStaff, kpis]);
-
-    const updateScore = (criteria: string, score: number) => {
-        setScores((prev) => ({
-            ...prev,
-            [criteria]: { ...prev[criteria], score },
-        }));
     };
 
-    const updateComment = (criteria: string, comment: string) => {
-        setScores((prev) => ({
-            ...prev,
-            [criteria]: { ...prev[criteria], comment },
-        }));
-    };
+    /* --------------------  Form helpers  -------------------- */
+    const updateScore = (id: string, val: number) =>
+        setScores((p: any) => ({ ...p, [id]: { ...p[id], score: val } }));
+    const updateComment = (id: string, txt: string) =>
+        setScores((p: any) => ({ ...p, [id]: { ...p[id], comment: txt } }));
 
-    const calculateAverageScore = () => {
-        const totalScore = Object.values(scores).reduce(
-            (sum, score) => sum + score.score,
-            0
-        );
-        return (totalScore / kpis.length).toFixed(1);
+    const calcAvg = (d: any) => {
+        const values = Object.values(d) as { score: number }[];
+        const total = values.reduce((sum, item) => sum + item.score, 0);
+        return (total / kpis.length).toFixed(1);
     };
 
     const handleSubmit = async () => {
-        if (!selectedStaff) {
-            toast.error("Please select staff member");
-            return;
-        }
-
-        // Check if all scores are filled
-        const allScoresFilled = Object.values(scores).every((s) => s.score > 0);
-        if (!allScoresFilled) {
-            toast.error("Please rate all criteria before submitting");
-            return;
-        }
-
         setIsSubmitting(true);
 
-        try {
             const scoresArray = Object.entries(scores).map(
-                ([kpi_id, data]) => ({
-                    kpi_id,
-                    points: data.score,
-                    comment: data.comment,
-                })
-            );
+            ([kpiId, scoreData]) => {
+                const kpi = kpis.find((k) => k.id === kpiId);
+                const score = (scoreData as any)?.score || 0;
+                const comment = (scoreData as any)?.comment || "";
+                return { kpiId, score, comment, weight: kpi?.weight ?? 1 };
+            }
+        );
 
-            await axiosInstance.post("/supervisor/submit-score", {
-                staffId: selectedStaff,
-                scores: scoresArray,
-            });
-            const staffName = selectedStaffMember?.name || "Staff";
-            pushActivity("Scored", staffName, averageScore);
-
-            setSelectedStaff("");
-            setScores({});
-            setKpis([]);
-            toast.success("Score submitted successfully");
-        } catch (error: any) {
-            if (error.response?.status === 401) {
-                localStorage.removeItem("accesstoken");
-                localStorage.removeItem("refreshtoken");
-                await logoutSupervisor();
+        /* ---------- 1. SUBMIT (only this can fail the save) ---------- */
+        try {
+            const payload = { staffId: selectedStaff!.id, scores: scoresArray };
+            if (selectedStaff!.isScored) {
+                await axiosInstance.put(
+                    `/supervisor/updateScore/${selectedStaff!.id}`,
+                    payload
+                );
+            } else {
+                await axiosInstance.post("/supervisor/submit-score", payload);
+            }
+            toast.success("Score saved!"); // ✅ only when submit really worked
+        } catch (err: any) {
+            if (err.response?.status === 401) {
+                const response: any = await logoutSupervisor();
+                if (response?.success) {
+                    localStorage.removeItem("accessToken");
+                    localStorage.removeItem("refreshToken");
                 dispatch(clearUser());
                 toast.error("Session Expired. Please login again");
             } else {
-                toast.error("Internal Server Error");
+                    console.error("Internal server error");
+                    toast.error("Something went wrong. Please try again.");
+                }
+            } else {
+                toast.error(err.response?.data?.message || "Save failed");
             }
-        } finally {
             setIsSubmitting(false);
+            return; // stop here – don't refresh lists
         }
+
+        /* ---------- 2. REFRESH LISTS (errors here are silent) ---------- */
+        try {
+            const { data: fresh } = await axiosInstance.get<any>(
+                "/supervisor/staff-scoring"
+            );
+            setStaff(fresh.usersRes);
+        } catch (err: any) {
+            console.log("Refresh staff list failed", err);
+            if (err.response?.status === 401) {
+                const response: any = await logoutSupervisor();
+                if (response?.success) {
+                    localStorage.removeItem("accessToken");
+                    localStorage.removeItem("refreshToken");
+                    dispatch(clearUser());
+                    toast.error("Session Expired. Please login again");
+                } else {
+                    console.error("Internal server error");
+                    toast.error("Something went wrong. Please try again.");
+                }
+            } else {
+                // Fallback: update local state immediately
+                setStaff((prevStaff) =>
+                    prevStaff.map((s: any) =>
+                        s.id === selectedStaff!.id ? { ...s, isScored: true } : s
+                    )
+                );
+            }
+        }
+
+        setView("list");
+        setSelectedStaff(null);
+        setScores({});
+        setIsSubmitting(false);
     };
 
-    const selectedStaffMember = staff.find(
-        (s) => s.id.toString() === selectedStaff
-    );
-    const averageScore =
-        Object.keys(scores).length > 0 ? calculateAverageScore() : "0.0";
+    /* --------------------  Reset filters  -------------------- */
+    const handleReset = () => {
+        setSearchQuery("");
+        setSelectedRole("");
+    };
 
-    if (loading) {
-        return <LoadingSpinner />;
-    }
+    /* --------------------  Loading guards  -------------------- */
+    if (loading) return <LoadingSpinner />;
+    if (view === "scoring" && loadingScore) return <LoadingSpinner />;
 
-    // Empty state for no staff
-    if (!loading && staff.length === 0) {
-        return (
-            <div className="space-y-6">
-                <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-white rounded-lg shadow-sm p-4"
-                >
-                    <div className="flex items-center justify-between mb-2">
-                        <h1 className="text-xl font-semibold text-gray-900">
-                            Staff Scoring
-                        </h1>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                        Create weekly performance evaluations for your team
-                    </p>
-                </motion.div>
-
-                <Card>
-                    <CardContent className="py-12 text-center">
-                        <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            No Staff Members Found
-                        </h3>
-                        <p className="text-gray-600 mb-4">
-                            There are no staff members assigned to you for
-                            scoring.
-                        </p>
-                        <p className="text-sm text-gray-500">
-                            Please contact your administrator if you believe
-                            this is an error.
-                        </p>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
+    if (view === "scoring" && selectedStaff) {
+        const average = Object.keys(scores).length ? calcAvg(scores) : "0.0";
+        const isUpdate = selectedStaff.isScored ?? false;
 
     return (
         <div className="space-y-6">
@@ -254,116 +273,27 @@ export function StaffScoringForm() {
                 transition={{ delay: 0.1 }}
                 className="bg-white rounded-lg shadow-sm p-4"
             >
-                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between">
                     <h1 className="text-xl font-semibold text-gray-900">
-                        Staff Scoring
+                            {isUpdate ? "Update Scores" : "Staff Scoring"}
                     </h1>
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setView("list")}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+                        >
+                            Back
+                        </motion.button>
                 </div>
-                <p className="text-sm text-gray-600">
-                    Create weekly performance evaluations for your team
-                </p>
             </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Form */}
-                <div className="lg:col-span-2 space-y-6">
-                    {/* Staff Selection */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <User className="h-5 w-5 text-[#FF3F33]" />
-                                Staff & Period Selection
-                            </CardTitle>
-                            <CardDescription>
-                                Choose the staff member and evaluation period
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                <Label htmlFor="staff">Staff Member</Label>
-                                <Select
-                                    value={selectedStaff}
-                                    onValueChange={setSelectedStaff}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select staff member" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {staff.map((staffMember) => (
-                                            <SelectItem
-                                                key={staffMember.id}
-                                                value={staffMember.id.toString()}
-                                            >
-                                                <div className="flex flex-col">
-                                                    <span>
-                                                        {staffMember.name}
-                                                    </span>
-                                                    <span className="text-xs text-gray-500">
-                                                        {staffMember.section}
-                                                    </span>
-                                                </div>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Empty state when no staff selected */}
-                    {!selectedStaff && (
-                        <Card>
-                            <CardContent className="py-12 text-center">
-                                <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                                    Select a Staff Member
-                                </h3>
-                                <p className="text-gray-600">
-                                    Choose a staff member from the dropdown
-                                    above to begin the evaluation
-                                </p>
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {/* Loading state */}
-                    {selectedStaff && kpisLoading && (
-                        <Card>
-                            <CardContent className="py-12 text-center">
-                                <LoadingSpinner />
-                                <p className="text-gray-600 mt-4">
-                                    Loading KPIs...
-                                </p>
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {/* No KPIs found */}
-                    {selectedStaff && !kpisLoading && kpis.length === 0 && (
-                        <Card>
-                            <CardContent className="py-12 text-center">
-                                <Star className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                                    No KPIs Available
-                                </h3>
-                                <p className="text-gray-600 mb-4">
-                                    No Key Performance Indicators have been
-                                    configured for evaluation.
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                    Please contact your administrator to set up
-                                    KPIs.
-                                </p>
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {/* Scoring Criteria */}
-                    {selectedStaff && kpis.length > 0 && (
+                    {/* ---------- Left column – criteria ---------- */}
                         <motion.div
+                        className="lg:col-span-2 space-y-6"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3 }}
+                        transition={{ duration: 0.4, delay: 0.2 }}
                         >
                             <Card>
                                 <CardHeader>
@@ -375,79 +305,103 @@ export function StaffScoringForm() {
                                         Rate each criterion on a scale of 1-5
                                     </CardDescription>
                                 </CardHeader>
-
                                 <CardContent className="space-y-6">
-                                    {kpis.map((criteria) => (
-                                        <div
-                                            key={criteria.id}
+                                <AnimatePresence>
+                                    {(kpis || []).map((k, idx) => (
+                                        <motion.div
+                                            key={k.id}
                                             className="space-y-4 p-4 border rounded-lg"
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{
+                                                duration: 0.3,
+                                                delay: idx * 0.1,
+                                            }}
                                         >
-                                            {/* KPI Title + Current Score */}
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                                 <div className="flex-1">
                                                     <h4 className="font-medium text-gray-900">
-                                                        {criteria.name}
+                                                        {k.name}
                                                     </h4>
                                                     <p className="text-sm text-gray-600 mt-1">
-                                                        {criteria.description}
+                                                        {k.description}
                                                     </p>
                                                 </div>
-                                                <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                                                <motion.div className="flex items-center gap-2 mt-2 sm:mt-0">
                                                     <span className="text-sm text-gray-500">
                                                         Score:
                                                     </span>
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={`${
-                                                            scores[criteria.id]
-                                                                ?.score >= 4
-                                                                ? "border-green-500 text-green-700"
-                                                                : scores[
-                                                                      criteria
-                                                                          .id
-                                                                  ]?.score >= 3
-                                                                ? "border-yellow-500 text-yellow-700"
-                                                                : scores[
-                                                                      criteria
-                                                                          .id
-                                                                  ]?.score > 0
-                                                                ? "border-red-500 text-red-700"
-                                                                : "border-gray-300 text-gray-500"
-                                                        }`}
+                                                    <motion.div
+                                                        key={
+                                                            scores[k.id]?.score
+                                                        }
+                                                        animate={{ scale: 1 }}
+                                                        initial={{ scale: 1.3 }}
+                                                        transition={{
+                                                            duration: 0.3,
+                                                        }}
                                                     >
-                                                        {scores[criteria.id]
+                                                    <Badge
+                                                        className={`${
+                                                                scores[k.id]
+                                                                ?.score >= 4
+                                                                    ? "border-green-500 text-green-700 bg-green-50"
+                                                                : scores[
+                                                                          k.id
+                                                                      ]
+                                                                          ?.score >=
+                                                                      3
+                                                                    ? "border-yellow-500 text-yellow-700 bg-yellow-50"
+                                                                : scores[
+                                                                          k.id
+                                                                      ]?.score >
+                                                                      0
+                                                                    ? "border-red-500 text-red-700 bg-red-50"
+                                                                    : "border-gray-300 text-gray-500 bg-gray-50"
+                                                            }`}
+                                                        >
+                                                            {scores[k.id]
                                                             ?.score || 0}
                                                         /5
                                                     </Badge>
-                                                </div>
+                                                    </motion.div>
+                                                </motion.div>
                                             </div>
 
-                                            {/* Dots Rating */}
-                                            <div className="flex justify-between mt-4 px-2">
-                                                {[1, 2, 3, 4, 5].map((num) => (
-                                                    <button
-                                                        key={num}
+                                            {/* 5 buttons */}
+                                            <div className="flex justify-between mt-4 px-2 gap-2">
+                                                {[1, 2, 3, 4, 5].map((n) => (
+                                                    <motion.button
+                                                        key={n}
                                                         onClick={() =>
-                                                            updateScore(
-                                                                criteria.id,
-                                                                num
-                                                            )
+                                                            updateScore(k.id, n)
                                                         }
-                                                        className={`w-10 h-10 rounded-full border flex items-center justify-center text-sm font-medium transition-all
-                                                            ${
-                                                                scores[
-                                                                    criteria.id
-                                                                ]?.score >= num
-                                                                    ? "bg-[#FF3F33] text-white border-[#FF3F33] scale-110"
+                                                        className={`w-10 h-10 rounded-full border flex items-center justify-center text-sm font-medium transition-all ${
+                                                            scores[k.id]
+                                                                ?.score >= n
+                                                                ? "bg-[#FF3F33] text-white border-[#FF3F33]"
                                                                     : "bg-white border-gray-300 text-gray-400 hover:border-[#FF3F33] hover:text-[#FF3F33]"
                                                             }`}
+                                                        whileHover={{
+                                                            scale: 1.15,
+                                                        }}
+                                                        whileTap={{
+                                                            scale: 0.9,
+                                                        }}
+                                                        animate={
+                                                            scores[k.id]
+                                                                ?.score >= n
+                                                                ? { scale: 1.1 }
+                                                                : { scale: 1 }
+                                                        }
+                                                        transition={{
+                                                            duration: 0.2,
+                                                        }}
                                                     >
-                                                        {num}
-                                                    </button>
+                                                        {n}
+                                                    </motion.button>
                                                 ))}
                                             </div>
-
-                                            {/* Labels below dots */}
                                             <div className="flex justify-between text-xs text-gray-500 mt-1 px-2">
                                                 <span>Poor</span>
                                                 <span>Fair</span>
@@ -456,100 +410,126 @@ export function StaffScoringForm() {
                                                 <span>Excellent</span>
                                             </div>
 
-                                            {/* Comment Box */}
+                                            <motion.div
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                transition={{ delay: 0.2 }}
+                                            >
                                             <Textarea
-                                                placeholder={`Add comments for ${criteria.name?.toLowerCase()}...`}
+                                                    placeholder={`Add comments for ${k.name.toLowerCase()}…`}
                                                 value={
-                                                    scores[criteria.id]
-                                                        ?.comment || ""
+                                                        scores[k.id]?.comment ||
+                                                        ""
                                                 }
                                                 onChange={(e) =>
                                                     updateComment(
-                                                        criteria.id,
+                                                            k.id,
                                                         e.target.value
                                                     )
                                                 }
                                                 rows={2}
                                                 className="mt-2"
                                             />
-                                        </div>
+                                            </motion.div>
+                                        </motion.div>
                                     ))}
+                                </AnimatePresence>
                                 </CardContent>
                             </Card>
                         </motion.div>
-                    )}
-                </div>
 
-                {/* Summary Sidebar */}
-                {selectedStaff && kpis.length > 0 && (
+                    {/* ---------- Right column – summary + staff info + button ---------- */}
                     <motion.div
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3 }}
+                        transition={{ duration: 0.4, delay: 0.3 }}
                         className="space-y-6"
                     >
-                        {/* Score Summary */}
                         <Card>
                             <CardHeader>
                                 <CardTitle>Evaluation Summary</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="text-center">
-                                    <div className="text-3xl font-bold text-[#FF3F33]">
-                                        {averageScore}
-                                    </div>
+                                <motion.div
+                                    className="text-center"
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{
+                                        type: "spring",
+                                        stiffness: 200,
+                                        delay: 0.4,
+                                    }}
+                                >
+                                    <motion.div
+                                        className="text-3xl font-bold text-[#FF3F33]"
+                                        key={average}
+                                        animate={{ scale: 1 }}
+                                        initial={{ scale: 1.5 }}
+                                        transition={{ duration: 0.3 }}
+                                    >
+                                        {average}
+                                    </motion.div>
                                     <div className="text-sm text-gray-500">
                                         Average Score
                                     </div>
-                                </div>
+                                </motion.div>
 
                                 <div className="space-y-2">
-                                    {kpis.map((criteria) => (
-                                        <div
-                                            key={criteria.id}
+                                    {kpis.map((k: any, idx: number) => (
+                                        <motion.div
+                                            key={k.id}
                                             className="flex justify-between items-center"
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{
+                                                delay: 0.4 + idx * 0.1,
+                                            }}
                                         >
                                             <span className="text-sm text-gray-600">
-                                                {criteria.name}
+                                                {k.name}
                                             </span>
-                                            <Badge
-                                                variant="outline"
-                                                className={`${
-                                                    scores[criteria.id]
-                                                        ?.score >= 4
-                                                        ? "border-green-500 text-green-700"
-                                                        : scores[criteria.id]
-                                                              ?.score >= 3
-                                                        ? "border-yellow-500 text-yellow-700"
-                                                        : scores[criteria.id]
-                                                              ?.score > 0
-                                                        ? "border-red-500 text-red-700"
-                                                        : "border-gray-300 text-gray-500"
+                                            <motion.span
+                                                key={scores[k.id]?.score}
+                                                className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-xs font-bold ${
+                                                    scores[k.id]?.score >= 4
+                                                        ? "bg-green-500"
+                                                        : scores[k.id]?.score >=
+                                                          3
+                                                        ? "bg-yellow-500"
+                                                        : scores[k.id]?.score >
+                                                          0
+                                                        ? "bg-red-500"
+                                                        : "bg-gray-300"
                                                 }`}
+                                                animate={{ scale: 1 }}
+                                                initial={{ scale: 1.3 }}
+                                                transition={{ duration: 0.3 }}
                                             >
-                                                {scores[criteria.id]?.score ||
-                                                    0}
-                                            </Badge>
-                                        </div>
+                                                {scores[k.id]?.score || 0}
+                                            </motion.span>
+                                        </motion.div>
                                     ))}
                                 </div>
 
-                                {/* Warning if scores incomplete */}
                                 {Object.values(scores).some(
-                                    (s) => s.score === 0
+                                    (s: any) => s.score === 0
                                 ) && (
-                                    <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                    <motion.div
+                                        className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg"
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3 }}
+                                    >
                                         <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
                                         <p className="text-xs text-amber-800">
                                             Please rate all criteria before
                                             submitting
                                         </p>
-                                    </div>
+                                    </motion.div>
                                 )}
                             </CardContent>
                         </Card>
 
-                        {/* Staff Info */}
                         <Card>
                             <CardHeader>
                                 <CardTitle>Staff Information</CardTitle>
@@ -562,40 +542,56 @@ export function StaffScoringForm() {
                                             Name:
                                         </span>
                                         <span className="font-medium">
-                                            {selectedStaffMember?.name}
+                                            {selectedStaff.name}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm">
-                                        <Building2 className="w-4 h-4 text-gray-500" />
+                                        <Briefcase className="w-4 h-4 text-gray-500" />
+                                        <span className="text-gray-500">
+                                            Role:
+                                        </span>
+                                        <span className="font-medium">
+                                            {selectedStaff.role}
+                                        </span>
+                                    </div>
+                                    {selectedStaff.section && (
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <MapPin className="w-4 h-4 text-gray-500" />
                                         <span className="text-gray-500">
                                             Section:
                                         </span>
                                         <span className="font-medium">
-                                            {selectedStaffMember?.section}
+                                                {selectedStaff.section}
                                         </span>
                                     </div>
+                                    )}
                                     <div className="flex items-center gap-2 text-sm">
                                         <Phone className="w-4 h-4 text-gray-500" />
                                         <span className="text-gray-500">
                                             Phone:
                                         </span>
                                         <span className="font-medium">
-                                            {selectedStaffMember?.mobile}
+                                            {selectedStaff.mobile}
                                         </span>
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        {/* Submit Button */}
-                        <Button
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 }}
+                        >
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
                             onClick={handleSubmit}
                             disabled={
                                 isSubmitting ||
-                                !selectedStaff ||
-                                Object.values(scores).some((s) => s.score === 0)
+    !hasKPIs ||
+    Object.values(scores).some((s: any) => s.score === 0)
                             }
-                            className="w-full bg-[#FF3F33] hover:bg-[#E6362A] disabled:opacity-50"
+                            className="w-full inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-[#FF3F33] hover:bg-[#E6362A] text-primary-foreground h-10 px-4 py-2"
                         >
                             {isSubmitting ? (
                                 <>
@@ -615,13 +611,200 @@ export function StaffScoringForm() {
                             ) : (
                                 <>
                                     <Save className="h-4 w-4 mr-2" />
-                                    Submit for Approval
+                                        {isUpdate ? "Update Score" : "Submit"}
                                 </>
                             )}
-                        </Button>
+                        </motion.button>
                     </motion.div>
-                )}
+                    </motion.div>
             </div>
+        </div>
+    );
+}
+
+    return (
+        <div className="space-y-6">
+            <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="bg-white rounded-lg shadow-sm p-4"
+            >
+                <div className="flex items-center justify-between mb-2">
+                    <h1 className="text-xl font-semibold text-gray-900">
+                        Staff Scoring
+                    </h1>
+                </div>
+                <p className="text-sm text-gray-600">
+                    Manage and create weekly performance evaluations for your floor staff
+                </p>
+            </motion.div>
+
+            <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+            >
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2">
+                                <Users className="h-5 w-5 text-[#FF3F33]" />
+                                Floor Staff Members
+                            </CardTitle>
+                            <div className="flex gap-2">
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setSearchOpen((s) => !s)}
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-gray-100 hover:text-accent-foreground h-9 px-3"
+                                >
+                                    <Search className="h-4 w-4" />
+                                </motion.button>
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setFilterOpen((s) => !s)}
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-gray-100 hover:text-accent-foreground h-9 px-3"
+                                >
+                                    <Filter className="h-4 w-4" />
+                                </motion.button>
+                                {(searchQuery || selectedRole) && (
+                                    <motion.button
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={handleReset}
+                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-gray-100 hover:text-accent-foreground h-9 px-3"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </motion.button>
+                                )}
+                            </div>
+                        </div>
+                    </CardHeader>
+
+                    <CardContent className="space-y-4">
+                        <AnimatePresence>
+                            {searchOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    <Input
+                                        placeholder="Search staff by name or mobile"
+                                        value={searchQuery}
+                                        onChange={(e) =>
+                                            setSearchQuery(e.target.value)
+                                        }
+                                        className="mb-4"
+                                        autoFocus
+                                    />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        <AnimatePresence>
+                            {filterOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="space-y-3 p-4 bg-gray-50 rounded-lg mb-4"
+                                >
+                                    <div>
+                                        <Label className="text-sm font-medium">
+                                            Role
+                                        </Label>
+                                        <select
+                                            value={selectedRole}
+                                            onChange={(e) =>
+                                                setSelectedRole(e.target.value)
+                                            }
+                                            className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                        >
+                                            <option value="">All Roles</option>
+                                            {roles.map((r) => (
+                                                <option key={r} value={r}>
+                                                    {r}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        <div className="space-y-2">
+                            {filteredStaff.length === 0 ? (
+                                <Card>
+                                    <CardContent className="py-8 text-center">
+                                        <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                                        <p className="text-gray-600">
+                                            No staff members found in your floor
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                filteredStaff.map((member: any, idx: number) => (
+                                    <motion.div
+                                        key={member.id}
+                                        onClick={() => handleStaffClick(member)}
+                                        className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                                            member.isScored
+                                                ? "bg-red-50 border-red-200 hover:border-red-400"
+                                                : "bg-white border-gray-200 hover:border-gray-400"
+                                        }`}
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{
+                                            delay: 0.1 + idx * 0.05,
+                                            duration: 0.3,
+                                        }}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3">
+                                                    <User className="w-5 h-5 text-gray-600" />
+                                                    <div>
+                                                        <h4 className="font-medium text-gray-900">
+                                                            {member.name}
+                                                        </h4>
+                                                        <p className="text-sm text-gray-600">
+                                                            {member.role}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                {member.section && (
+                                                    <p className="text-xs text-gray-500 mt-1 ml-8">
+                                                        {member.section}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {member.isScored ? (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-xs text-gray-500"
+                                                >
+                                                    Scored
+                                                </Badge>
+                                            ) : (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-xs text-gray-500"
+                                                >
+                                                    Not Scored
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                ))
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            </motion.div>
         </div>
     );
 }

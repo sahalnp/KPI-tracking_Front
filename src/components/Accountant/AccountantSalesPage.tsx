@@ -114,23 +114,6 @@ export function SalesReports() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-white rounded-lg shadow-sm p-4"
-      >
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-xl font-semibold text-gray-900">
-            Sales Reports
-          </h1>
-        </div>
-        <p className="text-sm text-gray-600">
-          View detailed sales performance data for staff members by month and year
-        </p>
-      </motion.div>
-
       {/* Filters */}
       <Card>
         <CardHeader>

@@ -83,9 +83,8 @@ export function MonthlyUploads() {
         }
     };
     const handleDownload = async (fileId: string, fileName: string) => {
+        alert("sfsdklfjskldjf")
         try {
-            toast.info("Downloading file...");
-
             const response = await axiosInstance.get(
                 `/accountant/download-file/${fileId}`,
                 {
@@ -435,12 +434,13 @@ export function MonthlyUploads() {
                                     </div>
 
                                     <div className="flex space-x-3">
-                                        <Button
+                                        <motion.button
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={() =>
                                                 fileInputRef.current?.click()
                                             }
                                             disabled={uploading}
-                                            className="bg-[#FF3F33] hover:bg-red-600"
+                                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-[#FF3F33] hover:bg-red-600 text-white h-10 px-4 py-2"
                                         >
                                             {uploading ? (
                                                 <motion.span
@@ -454,7 +454,7 @@ export function MonthlyUploads() {
                                             ) : (
                                                 "Browse Files"
                                             )}
-                                        </Button>
+                                        </motion.button>
                                     </div>
 
                                     <input
@@ -549,9 +549,8 @@ export function MonthlyUploads() {
                                                                 {file.status ===
                                                                     "error" &&
                                                                     file.errors && (
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="sm"
+                                                                        <motion.button
+                                                                            whileTap={{ scale: 0.95 }}
                                                                             onClick={() => {
                                                                                 toast.error(
                                                                                     `Validation Errors:\n${file.errors?.join(
@@ -559,29 +558,21 @@ export function MonthlyUploads() {
                                                                                     )}`
                                                                                 );
                                                                             }}
+                                                                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
                                                                         >
                                                                             View
                                                                             Errors
-                                                                        </Button>
+                                                                        </motion.button>
                                                                     )}
 
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => {
-                                                                        const link =
-                                                                            document.createElement(
-                                                                                "a"
-                                                                            );
-                                                                        link.href =
-                                                                            file.downloadUrl;
-                                                                        link.download =
-                                                                            file.originalname;
-                                                                        link.click();
-                                                                    }}
-                                                                >
-                                                                    <Download className="h-4 w-4" />
-                                                                </Button>
+                                                               <motion.button
+  whileTap={{ scale: 0.95 }}
+  onClick={() => handleDownload(file.id, file.originalname)}
+  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 px-3"
+>
+  <Download className="h-4 w-4" />
+</motion.button>
+
                                                             </div>
                                                         </TableCell>
                                                     </motion.tr>
@@ -613,11 +604,11 @@ export function MonthlyUploads() {
                                     transition={{ delay: 0.2 }}
                                     className="flex justify-center mt-6"
                                 >
-                                    <Button
+                                    <motion.button
+                                        whileTap={{ scale: 0.95 }}
                                         onClick={loadMoreData}
                                         disabled={loadingMore}
-                                        variant="outline"
-                                        className="min-w-[200px]"
+                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 min-w-[200px]"
                                     >
                                         {loadingMore ? (
                                             <>
@@ -627,7 +618,7 @@ export function MonthlyUploads() {
                                         ) : (
                                             "Load More"
                                         )}
-                                    </Button>
+                                    </motion.button> 
                                 </motion.div>
                             )}
 

@@ -16,20 +16,26 @@ import { SalesBottomNav } from "@/components/sales/saleBottomNav";
 import PrivateRouter from "./PrivateRouter";
 import PublicRouter from "./PublicRouter";
 import { SupervisorLayout } from "@/components/Supervisor/SupervisorLayout";
-import { SupervisorDashboard } from "@/components/Supervisor/SupervisorScreen";
-import { StaffScoringForm } from "@/components/Supervisor/SupervisorScoring";
-import { WalkOutManagement } from "@/components/Supervisor/WalkOutManagement";
-import { StaffManagementNew } from "@/components/Supervisor/StaffUsers";
-import { Account } from "@/components/Supervisor/AccountPage";
+import { SupervisorDashboard, SupervisorScoringForm, SupervisorSettings } from "@/components/Supervisor/SupervisorScreen";
+import { SupervisorReports } from "@/components/Supervisor/SupervisorReports";
+
+import { SupervisorStaffReportView } from "@/components/Supervisor/reports/staffReports";
+import SupervisorSalesReportPage from "@/components/Supervisor/reports/salesReport";
+import SupervisorAttendanceReportPage from "@/components/Supervisor/reports/attendanceReport";
+import { SupervisorWalkoutReportPage } from "@/components/Supervisor/reports/walkoutReport";
 import { AccountantDashboard } from "@/components/Accountant/AccountantScreen";
 import { AccountantLayout } from "@/components/Accountant/AccountantLayout";
 import { AccountantAccount } from "@/components/Accountant/AccountantAccount";
 import { MonthlyUploads } from "@/components/Accountant/MonthlyUploads";
 import { AttendanceManagement } from "@/components/Accountant/AttendenceManagment";
-import { SalesReports } from "@/components/Accountant/AccountantSalesPage";
+
 import { OwnerScoringForm } from "@/components/Owner/ScoringPage";
 import { OwnerReport } from "@/components/Owner/Reports";
 import { StaffReportView } from "@/components/Owner/reports/staffReports";
+import SalesReportPage from "@/components/Owner/reports/salesReport";
+import AttendanceReportPage from "@/components/Owner/reports/attendanceReport";
+import { WalkoutReportPage } from "@/components/Owner/reports/walkoutReport";
+
 function MainRouter() {
     const router = createBrowserRouter([
         {
@@ -65,6 +71,18 @@ function MainRouter() {
                                     path: "staff",
                                     element: <StaffReportView />,
                                 },
+                                 {
+                                    path: "sales",
+                                    element: <SalesReportPage />,
+                                },
+                                 {
+                                    path: "attendance",
+                                    element: <AttendanceReportPage />,
+                                },
+                                {
+                                    path: "walkout",
+                                    element: <WalkoutReportPage />,
+                                },
                             ],
                         },
 
@@ -83,10 +101,33 @@ function MainRouter() {
                     ),
                     children: [
                         { path: "dashboard", element: <SupervisorDashboard /> },
-                        { path: "scoring", element: <StaffScoringForm /> },
-                        { path: "walkouts", element: <WalkOutManagement /> },
-                        { path: "Users", element: <StaffManagementNew /> },
-                        { path: "account", element: <Account /> },
+                        { path: "scoring", element: <SupervisorScoringForm /> },
+                        {
+                            path: "reports",
+                            children: [
+                                {
+                                    index: true,
+                                    element: <SupervisorReports />,
+                                },
+                                {
+                                    path: "staff",
+                                    element: <SupervisorStaffReportView />,
+                                },
+                                {
+                                    path: "sales",
+                                    element: <SupervisorSalesReportPage />,
+                                },
+                                {
+                                    path: "attendance",
+                                    element: <SupervisorAttendanceReportPage />,
+                                },
+                                {
+                                    path: "walkout",
+                                    element: <SupervisorWalkoutReportPage />,
+                                },
+                            ],
+                        },
+                        { path: "settings", element: <SupervisorSettings /> },
                     ],
                 },
 
@@ -121,7 +162,7 @@ function MainRouter() {
                             path: "attendence",
                             element: <AttendanceManagement />,
                         },
-                        { path: "sales", element: <SalesReports /> },
+                        
                     ],
                 },
                 { path: "*", element: <Navigate to="/" replace /> },

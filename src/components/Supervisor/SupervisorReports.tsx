@@ -29,6 +29,10 @@ import {
 import { toast } from "sonner";
 import { ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { axiosInstance } from "@/api/axios";
+import { logoutSupervisor } from "@/lib/logoutApi";
+import { clearUser } from "@/features/UserSlice";
+import { useDispatch } from "react-redux";
 
 interface PerformanceReport {
     date: string;
@@ -39,67 +43,32 @@ interface PerformanceReport {
     walkOuts: number;
 }
 
-export function OwnerReport() {
+export function SupervisorReports() {
     const [customStartDate, setCustomStartDate] = useState("");
     const [customEndDate, setCustomEndDate] = useState("");
     const [loading, setLoading] = useState(false);
     const [showCustomCalendar, setShowCustomCalendar] = useState(false);
     const navigate = useNavigate();
+    const dispatch = useDispatch();
 
     const [filterType, setFilterType] = useState<
         "today" | "this-week" | "this-month" | "custom" | "open"
     >("today");
 
-    // Mock performance data for different date ranges
-    const dailyData: PerformanceReport[] = [
-        {
-            date: "2024-01-15",
-            totalSales: 1250000,
-            totalTarget: 1500000,
-            achievement: 83.3,
-            activeStaff: 24,
-            walkOuts: 12,
-        },
-    ];
-
-    const monthlyData: PerformanceReport[] = Array.from(
-        { length: 31 },
-        (_, i) => ({
-            date: `2024-01-${String(i + 1).padStart(2, "0")}`,
-            totalSales: Math.floor(Math.random() * 500000) + 1000000,
-            totalTarget: 1500000,
-            achievement: Math.floor(Math.random() * 40) + 60,
-            activeStaff: Math.floor(Math.random() * 5) + 20,
-            walkOuts: Math.floor(Math.random() * 10) + 5,
-        })
-    );
-
-    const yearlyData: PerformanceReport[] = Array.from(
-        { length: 12 },
-        (_, i) => ({
-            date: `2024-${String(i + 1).padStart(2, "0")}`,
-            totalSales: Math.floor(Math.random() * 5000000) + 15000000,
-            totalTarget: 18000000,
-            achievement: Math.floor(Math.random() * 30) + 70,
-            activeStaff: Math.floor(Math.random() * 5) + 20,
-            walkOuts: Math.floor(Math.random() * 50) + 150,
-        })
-    );
 
     // Get current data based on filter type
-    const getCurrentData = () => {
-        switch (filterType) {
-            case "today":
-                return dailyData;
-            case "this-week":
-                return monthlyData;
-            case "this-month":
-                return yearlyData;
-            default:
-                return dailyData;
-        }
-    };
-
+    // const getCurrentData = () => {
+    //     switch (filterType) {
+    //         case "today":
+    //             return dailyData;
+    //         case "this-week":
+    //             return monthlyData;
+    //         case "this-month":
+    //             return yearlyData;
+    //         default:
+    //             return dailyData;
+    //     }
+    // };
 
     function MiniCalendar({
         start,
@@ -275,7 +244,7 @@ export function OwnerReport() {
             icon: Users,
             bgColor: "bg-yellow-50",
             iconColor: "text-yellow-600",
-            route: "/owner/reports/staff",
+            route: "/FloorSupervisor/reports/staff",
         },
         {
             id: 2,
@@ -283,30 +252,29 @@ export function OwnerReport() {
             icon: TrendingUp,
             bgColor: "bg-blue-50",
             iconColor: "text-blue-600",
-            route: "/owner/reports/sales",
+            route: "/FloorSupervisor/reports/sales",
         },
         {
-  id: 3,
-  name: "Attendance",
-  icon: UserCheck, 
-  bgColor: "bg-blue-50",
-  iconColor: "text-blue-600",
-  route: "/owner/reports/attendance",
-},
-
+            id: 3,
+            name: "Attendance",
+            icon: UserCheck, 
+            bgColor: "bg-blue-50",
+            iconColor: "text-blue-600",
+            route: "/FloorSupervisor/reports/attendance",
+        },
         {
             id: 4,
             name: "Walkout Report",
             icon: UserX,
             bgColor: "bg-orange-50",
             iconColor: "text-orange-600",
-            route: "/owner/reports/walkout",
+            route: "/FloorSupervisor/reports/walkout",
         },
     ];
 
     return (
         <div className="space-y-6">
-            <motion.div
+            {/* <motion.div
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
@@ -320,7 +288,7 @@ export function OwnerReport() {
                 <p className="text-sm text-gray-600">
                     Analyze performance metrics across different time periods
                 </p>
-            </motion.div>
+            </motion.div> */}
 
             <Card>
                 <CardHeader>
@@ -465,24 +433,6 @@ export function OwnerReport() {
                                             boxShadow:
                                                 "0 2px 4px rgba(0,0,0,0.1)",
                                         }}
-                                        // onClick={() => {
-                                        //   const today = new Date();
-                                        //   const fmt = (d: Date) => d.toISOString().split("T")[0];
-                                        //   const startOfWeek = new Date(today);
-                                        //   startOfWeek.setDate(today.getDate() - today.getDay() + 1);
-                                        //   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-                                        //   const [start, end] =
-                                        //     customStartDate && customEndDate
-                                        //       ? [customStartDate, customEndDate]
-                                        //       : filterType === "this-week"
-                                        //       ? [fmt(startOfWeek), fmt(today)]
-                                        //       : filterType === "this-month"
-                                        //       ? [fmt(startOfMonth), fmt(today)]
-                                        //       : [fmt(today), fmt(today)];
-
-                                        //   navigate(`${report.route}?filter=${filterType}&start=${start}&end=${end}`);
-                                        // }}
                                         onClick={() => {
                                             const today = new Date();
                                             const fmt = (d: Date) =>

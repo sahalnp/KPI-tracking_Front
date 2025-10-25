@@ -23,7 +23,6 @@ import {
     Plus,
     X,
     LayoutGrid,
-    List,
     Search,
     Loader,
     Edit,
@@ -59,7 +58,7 @@ const OwnerUsers: React.FC = () => {
     const [selectedStaffName, setSelectedStaffName] = useState("");
     const [userToEdit, setUserToEdit] = useState<any | null>(null);
     const [userToDelete, setUserToDelete] = useState<any | null>(null);
-    const [viewMode, setViewMode] = useState<"card" | "list">("card");
+    const [viewMode] = useState<"card">("card");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
@@ -75,11 +74,61 @@ const OwnerUsers: React.FC = () => {
     const [totalInactive, setTotalInactive] = useState(0);
     const [totalDeleted, setTotalDeleted] = useState(0);
 
+    // ID validation states
+    const [idValidation, setIdValidation] = useState({
+        isChecking: false,
+        exists: false,
+        message: ""
+    });
+
     const { ref: loadMoreRef, inView } = useInView({ threshold: 0.5 });
 
     useEffect(() => {
         if (inView) loadMore();
     }, [inView]);
+
+    // Debounced function to check ID existence
+    const checkIdExists = useCallback(
+        debounce(async (uniqueId: string) => {
+            if (!uniqueId || uniqueId.length < 3) {
+                setIdValidation({ isChecking: false, exists: false, message: "" });
+                return;
+            }
+
+            setIdValidation(prev => ({ ...prev, isChecking: true }));
+
+            try {
+                const { data } = await axiosInstance.get(`/owner/check-id?uniqueId=${uniqueId}`);
+                setIdValidation({
+                    isChecking: false,
+                    exists: data.exists,
+                    message: data.message
+                });
+            } catch (err:any) {
+                 if (err.response?.status === 401) {
+                                    const response = await logoutOwner();
+                                    if ((response as any).success) {
+                                        localStorage.removeItem("accessToken");
+                                        localStorage.removeItem("refreshToken");
+                                        dispatch(clearUser());
+                                    } else {
+                                        console.error("Logout failed on backend");
+                                    }
+                                }
+                setIdValidation({
+                    isChecking: false,
+                    exists: false,
+                    message: "Error checking ID"
+                });
+            }
+        }, 500),
+        []
+    );
+
+    // Reset ID validation when modal is closed
+    const resetIdValidation = () => {
+        setIdValidation({ isChecking: false, exists: false, message: "" });
+    };
 
     const SummaryCard: React.FC<any> = ({
         title,
@@ -115,11 +164,14 @@ const OwnerUsers: React.FC = () => {
             setFilteredUsers(res.data.users);
         } catch (err: any) {
             if (err.response?.status === 401) {
-                localStorage.removeItem("accesstoken");
-                localStorage.removeItem("refreshtoken");
-                await logoutOwner();
-                dispatch(clearUser());
-                toast.error("Credentials expired. Please login again ✅");
+                  const response = await logoutOwner();
+                    if ((response as any).success) {
+                        localStorage.removeItem("accessToken");
+                        localStorage.removeItem("refreshToken");
+                        dispatch(clearUser());
+                    } else {
+                        console.error("Logout failed on backend");
+                    }
             } else {
                 setError("Failed to load users.");
             }
@@ -198,20 +250,21 @@ const OwnerUsers: React.FC = () => {
             );
         } catch (err: any) {
             if (err.response?.status === 401) {
-                localStorage.removeItem("accesstoken");
-                localStorage.removeItem("refreshtoken");
-                await logoutOwner();
-                dispatch(clearUser());
+                 const response = await logoutOwner();
+                                   if ((response as any).success) {
+                                       localStorage.removeItem("accessToken");
+                                       localStorage.removeItem("refreshToken");
+                                       dispatch(clearUser());
+                                   } else {
+                                       console.error("Logout failed on backend");
+                                   }
             } else {
                 console.error("Failed to update status:", err);
             }
         }
     };
 
-    const viewDetails = (u: any) => {
-        setSelectedUser(u);
-        setShowDetailModal(true);
-    };
+
 
     const deleteUser = (u: any) => {
         setUserToDelete(u);
@@ -259,11 +312,29 @@ const OwnerUsers: React.FC = () => {
             toast.error("Mobile number must contain only digits");
             return;
         }
+        
+        const pin = fd.get("pin") as string;
+        if (pin && ( pin.length > 6)) {
+            toast.error("PIN must be 6 digits");
+            return;
+        }
+        if (pin && !/^\d+$/.test(pin)) {
+            toast.error("PIN must contain only digits");
+            return;
+        }
+        
+        // Check if ID already exists
+        if (idValidation.exists) {
+            toast.error("ID already exists. Please choose a different ID.");
+            return;
+        }
+        
         try {
             const { data } = await axiosInstance.post("/owner/addUser", {
                 name: fd.get("name"),
                 mobile: fd.get("mobile"),
                 uniqueId: fd.get("uniqueId"),
+                pin: fd.get("pin"),
                 role: role,
                 floor: fd.get("floor"),
                 // Send null for section if role is Accountant or FloorSupervisor
@@ -285,6 +356,7 @@ const OwnerUsers: React.FC = () => {
                 if (data.deletedUsers !== undefined)
                     setTotalDeleted(data.deletedUsers);
                 setSelectedRole(""); 
+                resetIdValidation();
                 toast.success("User added successfully!");
             }
        } catch (err: any) {
@@ -320,6 +392,17 @@ const OwnerUsers: React.FC = () => {
             toast.error("Mobile number must contain only digits");
             return;
         }
+        
+        const pin = fd.get("pin") as string;
+        if (pin && pin.trim() !== "" && ( pin.length > 6)) {
+            toast.error("PIN must be 6 digits");
+            return;
+        }
+        if (pin && pin.trim() !== "" && !/^\d+$/.test(pin)) {
+            toast.error("PIN must contain only digits");
+            return;
+        }
+        
         try {
             const { data } = await axiosInstance.put(
                 `/owner/updateUser/${userToEdit.id}`,
@@ -327,6 +410,7 @@ const OwnerUsers: React.FC = () => {
                     name: fd.get("name"),
                     mobile: fd.get("mobile"),
                     uniqueId: fd.get("uniqueId"),
+                    pin: pin && pin.trim() !== "" ? pin : undefined,
                     role: role,
                     floor: fd.get("floor"),
                     // Send null for section if role is Accountant or FloorSupervisor
@@ -413,36 +497,27 @@ const OwnerUsers: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="flex gap-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => viewDetails(u)}
-                                        >
-                                            <Eye
-                                                size={16}
-                                                className="text-gray-400 hover:text-[#FF3F33]"
-                                            />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
+                                        
+                                        <motion.button
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={() => editUser(u)}
+                                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10"
                                         >
                                             <Edit
                                                 size={16}
                                                 className="text-gray-400 hover:text-blue-500"
                                             />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
+                                        </motion.button>
+                                        <motion.button
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={() => deleteUser(u)}
+                                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10"
                                         >
                                             <Trash2
                                                 size={16}
                                                 className="text-gray-400 hover:text-red-500"
                                             />
-                                        </Button>
+                                        </motion.button>
                                     </div>
                                 </div>
 
@@ -523,7 +598,7 @@ const OwnerUsers: React.FC = () => {
         </div>
     );
 
-    const ListView = () => (
+    // const ListView = () => (
         <div className="p-4 pb-24">
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
                 <div className="overflow-x-auto">
@@ -638,46 +713,37 @@ const OwnerUsers: React.FC = () => {
                                         {fmtDate(u.created_at)}
                                     </td>
                                     <td className="px-4 py-3 flex gap-2">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
+                                        <motion.button
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={() => handleShowScores(u)}
+                                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10"
                                         >
                                             <Award
                                                 size={16}
                                                 className="text-gray-400 hover:text-[#FF3F33]"
                                             />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => viewDetails(u)}
-                                        >
-                                            <Eye
-                                                size={16}
-                                                className="text-gray-400 hover:text-[#FF3F33]"
-                                            />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
+                                        </motion.button>
+                                      
+                                        <motion.button
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={() => editUser(u)}
+                                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10"
                                         >
                                             <Edit
                                                 size={16}
                                                 className="text-gray-400 hover:text-blue-500"
                                             />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
+                                        </motion.button>
+                                        <motion.button
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={() => deleteUser(u)}
+                                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10"
                                         >
                                             <Trash2
                                                 size={16}
                                                 className="text-gray-400 hover:text-red-500"
                                             />
-                                        </Button>
+                                        </motion.button>
                                     </td>
                                 </tr>
                             ))}
@@ -696,7 +762,7 @@ const OwnerUsers: React.FC = () => {
                 )}
             </div>
         </div>
-    );
+    // );
 
     if (loading) return <LoadingSpinner />;
     if (error)
@@ -745,35 +811,6 @@ const OwnerUsers: React.FC = () => {
                     </CardContent>
                 </Card>
             </div>
-            <div className="flex gap-2">
-                <Button
-                    variant={viewMode === "card" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setViewMode("card")}
-                    className={
-                        viewMode === "card"
-                            ? "bg-[#FF3F33] hover:bg-[#E6362A] flex-1"
-                            : "flex-1"
-                    }
-                >
-                    <Grid className="h-4 w-4 mr-2" />
-                    Cards
-                </Button>
-                <Button
-                    variant={viewMode === "list" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                    className={
-                        viewMode === "list"
-                            ? "bg-[#FF3F33] hover:bg-[#E6362A] flex-1"
-                            : "flex-1"
-                    }
-                >
-                    <List className="h-4 w-4 mr-2" />
-                    List
-                </Button>
-            </div>
-
             {/* Search and Filters */}
             {users.length > 0 && (
                 <div className="px-4 mb-6">
@@ -793,14 +830,14 @@ const OwnerUsers: React.FC = () => {
                             </div>
 
                             {/* 🧰 Filter Button (Right) */}
-                            <Button
-                                variant="outline"
+                            <motion.button
+                                whileTap={{ scale: 0.95 }}
                                 onClick={() => setShowFilters(!showFilters)}
-                                className="flex items-center gap-2 whitespace-nowrap"
+                                className="flex items-center gap-2 whitespace-nowrap inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
                             >
                                 <Filter className="h-4 w-4 text-gray-600" />
-                                Filters
-                            </Button>
+                                
+                            </motion.button>
                         </div>
 
                         <AnimatePresence>
@@ -856,12 +893,13 @@ const OwnerUsers: React.FC = () => {
                                     </Select>
 
                                     {hasActiveFilters && (
-                                        <Button
-                                            variant="outline"
+                                        <motion.button
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={clearAllFilters}
+                                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
                                         >
                                             Clear Filters
-                                        </Button>
+                                        </motion.button>
                                     )}
                                 </motion.div>
                             )}
@@ -871,7 +909,7 @@ const OwnerUsers: React.FC = () => {
             )}
 
             <div className="-mt-5">
-                {viewMode === "card" ? <CardView /> : <ListView />}
+                <CardView />
             </div>
 
             <button
@@ -900,7 +938,10 @@ const OwnerUsers: React.FC = () => {
                                 <h2 className="text-xl font-semibold text-gray-800">
                                     Add New User
                                 </h2>
-                                <button onClick={() => setShowAddModal(false)}>
+                                <button onClick={() => {
+                                    setShowAddModal(false);
+                                    resetIdValidation();
+                                }}>
                                     <X
                                         size={20}
                                         className="text-gray-500 hover:text-gray-800"
@@ -912,12 +953,27 @@ const OwnerUsers: React.FC = () => {
                                     <Label htmlFor="add-uniqueId">
                                         Unique ID
                                     </Label>
-                                    <Input
-                                        id="add-uniqueId"
-                                        name="uniqueId"
-                                        placeholder="ID"
-                                        required
-                                    />
+                                    <div className="relative">
+                                        <Input
+                                            id="add-uniqueId"
+                                            name="uniqueId"
+                                            placeholder="ID"
+                                            required
+                                            onChange={(e) => checkIdExists(e.target.value)}
+                                        />
+                                        {idValidation.isChecking && (
+                                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                                <Loader className="h-4 w-4 animate-spin text-gray-400" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {idValidation.message && (
+                                        <span className={`text-xs ${
+                                            idValidation.exists ? 'text-red-500' : 'text-green-500'
+                                        }`}>
+                                            {idValidation.message}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <Label htmlFor="add-name">Name</Label>
@@ -943,6 +999,22 @@ const OwnerUsers: React.FC = () => {
                                     />
                                     <span className="text-xs text-gray-500">
                                         Mobile must be exactly 10 digits
+                                    </span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <Label htmlFor="add-pin">PIN</Label>
+                                    <Input
+                                        id="add-pin"
+                                        name="pin"
+                                        type="password"
+                                        placeholder="Enter PIN"
+                                        minLength={4}
+                                        maxLength={6}
+                                        title="PIN must be 6 digits"
+                                        required
+                                    />
+                                    <span className="text-xs text-gray-500">
+                                        PIN must be 6 digits
                                     </span>
                                 </div>
                                 <div className="flex flex-col gap-1">
@@ -999,7 +1071,10 @@ const OwnerUsers: React.FC = () => {
                                 <div className="flex gap-3 pt-2">
                                     <button
                                         type="button"
-                                        onClick={() => setShowAddModal(false)}
+                                        onClick={() => {
+                                            setShowAddModal(false);
+                                            resetIdValidation();
+                                        }}
                                         className="flex-1 border border-gray-300 rounded-lg py-2 text-gray-700 hover:bg-gray-100"
                                     >
                                         Cancel
@@ -1085,6 +1160,21 @@ const OwnerUsers: React.FC = () => {
                                     </span>
                                 </div>
                                 <div className="flex flex-col gap-1">
+                                    <Label htmlFor="edit-pin">PIN</Label>
+                                    <Input
+                                        id="edit-pin"
+                                        name="pin"
+                                        type="password"
+                                        placeholder="Enter new PIN"
+                                        minLength={4}
+                                        maxLength={6}
+                                        title="PIN must be 6 digits"
+                                    />
+                                    <span className="text-xs text-gray-500">
+                                        Leave blank if PIN is not changing
+                                    </span>
+                                </div>
+                                <div className="flex flex-col gap-1">
                                     <Label htmlFor="edit-role">Role</Label>
                                     <Select
                                         name="role"
@@ -1158,7 +1248,7 @@ const OwnerUsers: React.FC = () => {
                     </motion.div>
                 )}
 
-                {showDetailModal && selectedUser && (
+                {/* {showDetailModal && selectedUser && (
                     <motion.div
                         className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
                         initial={{ opacity: 0 }}
@@ -1228,14 +1318,7 @@ const OwnerUsers: React.FC = () => {
                                     <span className="font-medium">Floor:</span>
                                     <span>{selectedUser.floor.name}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="font-medium">
-                                        PIN Hash:
-                                    </span>
-                                    <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                                        {selectedUser.pinHash}
-                                    </span>
-                                </div>
+                               
                                 <div className="flex justify-between">
                                     <span className="font-medium">Status:</span>
                                     <span
@@ -1275,7 +1358,7 @@ const OwnerUsers: React.FC = () => {
                             </div>
                         </motion.div>
                     </motion.div>
-                )}
+                )} */}
 
                 {showDeleteModal && userToDelete && (
                     <motion.div

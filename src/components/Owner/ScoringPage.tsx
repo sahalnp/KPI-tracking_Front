@@ -12,7 +12,8 @@ import {
     Search,
     Filter,
     X,
-     ChevronUp, ChevronDown
+    ChevronUp,
+    ChevronDown,
 } from "lucide-react";
 import {
     Card,
@@ -27,12 +28,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/ui/spinner";
-import { axiosInstance } from "@/api/axios"; // <-- your configured axios
+import { axiosInstance } from "@/api/axios";
 import { logoutOwner } from "@/lib/logoutApi";
 import { clearUser } from "@/features/UserSlice";
 import { useDispatch } from "react-redux";
 import { toast } from "sonner";
-import { error } from "console";
 
 const isToday = (iso?: string) => {
     if (!iso) return false;
@@ -59,26 +59,29 @@ export function OwnerScoringForm() {
     const [loading, setLoading] = useState(true); // global first load
     const [loadingScore, setLoadingScore] = useState(false);
     const dispatch = useDispatch();
+     const hasKPIs = Array.isArray(kpis) && kpis.length > 0;
 
     /* --------------------  Derived  -------------------- */
     const roles = [...new Set(staff.map((s) => s.role))];
-    const floors = [...new Set(staff.map((s) => s.floor?.name).filter(Boolean))];
-    /* ----------  helper  ---------- */
-    const extractScoreInfo = (arr: any[] = []) => {
-        if (!arr.length) return { isScoredToday: false, lastAvg: 0 };
-        const latest = [...arr].sort(
-            (a, b) =>
-                new Date(b.createdAt || 0).getTime() -
-                new Date(a.createdAt || 0).getTime()
-        )[0];
-        return {
-            isScoredToday:
-                latest.createdAt &&
-                new Date(latest.createdAt).toDateString() ===
-                    new Date().toDateString(),
-            lastAvg: Number(latest.score) || 0,
-        };
-    };
+    const floors = [
+        ...new Set(staff.map((s) => s.floor?.name).filter(Boolean)),
+    ];
+    // /* ----------  helper  ---------- */
+    // const extractScoreInfo = (arr: any[] = []) => {
+    //     if (!arr.length) return { isScoredToday: false, lastAvg: 0 };
+    //     const latest = [...arr].sort(
+    //         (a, b) =>
+    //             new Date(b.createdAt || 0).getTime() -
+    //             new Date(a.createdAt || 0).getTime()
+    //     )[0];
+    //     return {
+    //         isScoredToday:
+    //             latest.createdAt &&
+    //             new Date(latest.createdAt).toDateString() ===
+    //                 new Date().toDateString(),
+    //         lastAvg: Number(latest.score) || 0,
+    //     };
+    // };
     useEffect(() => {
         (async () => {
             try {
@@ -89,11 +92,29 @@ export function OwnerScoringForm() {
 
                 setStaff(usersRes.data.usersRes);
                 setKpis(kpiRes.data.kpis);
+                
+            } catch (err: any) {
+                console.error("Error fetching data:", err);
+                if (err.response?.status === 401) {
+                    const response = await logoutOwner();
+                    if (response.success) {
+                        localStorage.removeItem("accessToken");
+                        localStorage.removeItem("refreshToken");
+                        dispatch(clearUser());
+                    } else {
+                        console.error("Logout failed on backend");
+                    }
+                }
+                toast.error(
+                    err.response?.data?.message ||
+                        "Failed to load data. Please try again."
+                );
             } finally {
                 setLoading(false);
             }
         })();
     }, []);
+
     /* --------------------  Filter logic  -------------------- */
     useEffect(() => {
         let f = staff;
@@ -104,7 +125,7 @@ export function OwnerScoringForm() {
                     s.mobile.includes(searchQuery)
             );
         if (selectedRole) f = f.filter((s) => s.role === selectedRole);
-        if (selectedFloor)  f = f.filter((s) => s.floor?.name === selectedFloor);
+        if (selectedFloor) f = f.filter((s) => s.floor?.name === selectedFloor);
         setFilteredStaff(f);
     }, [searchQuery, selectedRole, selectedFloor, staff]);
 
@@ -122,8 +143,8 @@ export function OwnerScoringForm() {
                 const { data } = await axiosInstance.get<any>(
                     `/owner/userscore/${member.id}`
                 );
-                console.log(data.kpis,"jhjklhjkhjkl");
-                
+                console.log(data.kpis, "jhjklhjkhjkl");
+
                 // Transform the kpis array into scores object format
                 const transformedScores: any = {};
                 if (data.kpis && Array.isArray(data.kpis)) {
@@ -141,13 +162,14 @@ export function OwnerScoringForm() {
             setView("scoring");
         } catch (err: any) {
             if (err.response?.status === 401) {
-                localStorage.removeItem("accesstoken");
-                localStorage.removeItem("refreshtoken");
-                await logoutOwner();
-                dispatch(clearUser());
-                toast.error("Session Expired. Please login again");
-            } else {
-                toast.error("Internal Server Error");
+                const response = await logoutOwner();
+                if (response.success) {
+                    localStorage.removeItem("accessToken");
+                    localStorage.removeItem("refreshToken");
+                    dispatch(clearUser());
+                } else {
+                    console.error("Logout failed on backend");
+                }
             }
         } finally {
             setLoadingScore(false);
@@ -166,174 +188,188 @@ export function OwnerScoringForm() {
         return (total / kpis.length).toFixed(1);
     };
 
+    const handleSubmit = async () => {
+        setIsSubmitting(true);
 
+        const scoresArray = Object.entries(scores).map(
+            ([kpiId, { score, comment }]) => {
+                const kpi = kpis.find((k) => k.id === kpiId);
+                return { kpiId, score, comment, weight: kpi?.weight ?? 1 };
+            }
+        );
 
-const handleSubmit = async () => {
-  setIsSubmitting(true);
+        /* ---------- 1. SUBMIT (only this can fail the save) ---------- */
+        try {
+            const payload = { staffId: selectedStaff!.id, scores: scoresArray };
+            if (selectedStaff!.isScored) {
+                await axiosInstance.put(
+                    `/owner/updateScore/${selectedStaff!.id}`,
+                    payload
+                );
+            } else {
+                await axiosInstance.post("/owner/submit-score", payload);
+            }
+            toast.success("Score saved!"); // ✅ only when submit really worked
+        } catch (err: any) {
+            if (err.response?.status === 401) {
+                const response = await logoutOwner();
+                if (response.success) {
+                    localStorage.removeItem("accessToken");
+                    localStorage.removeItem("refreshToken");
+                    dispatch(clearUser());
+                } else {
+                    console.error("Logout failed on backend");
+                }
+            } else {
+                toast.error(err.response?.data?.message || "Save failed");
+            }
+            setIsSubmitting(false);
+            return; // stop here – don't refresh lists
+        }
 
-  const scoresArray = Object.entries(scores).map(
-    ([kpiId, { score, comment }]) => {
-      const kpi = kpis.find((k) => k.id === kpiId);
-      return { kpiId, score, comment, weight: kpi?.weight ?? 1 };
-    }
-  );
+        /* ---------- 2. REFRESH LISTS (errors here are silent) ---------- */
+        try {
+            const { data: fresh } = await axiosInstance.get<any>(
+                "/owner/staff-scoring"
+            );
+            setStaff(fresh.usersRes);
+        } catch (err: any) {
+            console.log("Refresh staff list failed", err);
+            if (err.response?.status === 401) {
+                const response = await logoutOwner();
+                if (response.success) {
+                    localStorage.removeItem("accessToken");
+                    localStorage.removeItem("refreshToken");
+                    dispatch(clearUser());
+                } else {
+                    console.error("Logout failed on backend");
+                }
+            }
+            // Fallback: update local state immediately
+            setStaff((prevStaff) =>
+                prevStaff.map((s) =>
+                    s.id === selectedStaff!.id ? { ...s, isScored: true } : s
+                )
+            );
+        }
 
-  /* ---------- 1. SUBMIT (only this can fail the save) ---------- */
-  try {
-    const payload = { staffId: selectedStaff!.id, scores: scoresArray };
-    if (selectedStaff!.isScored) {
-      await axiosInstance.put(`/owner/updateScore/${selectedStaff!.id}`, payload);
-    } else {
-      await axiosInstance.post("/owner/submit-score", payload);
-    }
-    toast.success("Score saved!"); // ✅ only when submit really worked
-  } catch (err: any) {
-    if (err.response?.status === 401) {
-      localStorage.removeItem("accesstoken");
-      localStorage.removeItem("refreshtoken");
-      await logoutOwner();
-      dispatch(clearUser());
-      toast.error("Session Expired. Please login again");
-    } else {
-      toast.error(err.response?.data?.message || "Save failed");
-    }
-    setIsSubmitting(false);
-    return; // stop here – don't refresh lists
-  }
+        setView("list");
+        setSelectedStaff(null);
+        setScores({});
+        setIsSubmitting(false);
+    };
 
-  /* ---------- 2. REFRESH LISTS (errors here are silent) ---------- */
-  try {
-    const { data: fresh } = await axiosInstance.get<any>("/owner/staff-scoring");
-    setStaff(fresh.usersRes);
-  } catch (e) {
-    console.warn("Refresh staff list failed", e);
-    // Fallback: update local state immediately
-    setStaff((prevStaff) =>
-      prevStaff.map((s) =>
-        s.id === selectedStaff!.id
-          ? { ...s, isScored: true }
-          : s
-      )
-    );
-  }
+    //     const handleSubmit = async () => {
+    //   setIsSubmitting(true);
 
-  setView("list");
-  setSelectedStaff(null);
-  setScores({});
-  setIsSubmitting(false);
-};
+    //   const scoresArray = Object.entries(scores).map(
+    //     ([kpiId, { score, comment }]) => {
+    //       const kpi = kpis.find((k) => k.id === kpiId);
+    //       return { kpiId, score, comment, weight: kpi?.weight ?? 1 };
+    //     }
+    //   );
 
-//     const handleSubmit = async () => {
-//   setIsSubmitting(true);
+    //   /* ---------- 1. SUBMIT (only this can fail the save) ---------- */
+    //   try {
+    //     const payload = { staffId: selectedStaff!.id, scores: scoresArray };
+    //     if (selectedStaff!.isScored) {
+    //       await axiosInstance.put(`/owner/updateScore/${selectedStaff!.id}`, payload);
+    //     } else {
+    //       await axiosInstance.post("/owner/submit-score", payload);
+    //     }
+    //     toast.success("Score saved!"); // ✅ only when submit really worked
+    //   } catch (err: any) {
+    //     if (err.response?.status === 401) {
+    //       localStorage.removeItem("accesstoken");
+    //       localStorage.removeItem("refreshtoken");
+    //       await logoutOwner();
+    //       dispatch(clearUser());
+    //       toast.error("Session Expired. Please login again");
+    //     } else {
+    //       toast.error(err.response?.data?.message || "Save failed");
+    //     }
+    //     setIsSubmitting(false);
+    //     return; // stop here – don’t refresh lists
+    //   }
 
-//   const scoresArray = Object.entries(scores).map(
-//     ([kpiId, { score, comment }]) => {
-//       const kpi = kpis.find((k) => k.id === kpiId);
-//       return { kpiId, score, comment, weight: kpi?.weight ?? 1 };
-//     }
-//   );
+    //   try {
+    //     const { data: fresh } = await axiosInstance.get<any[]>("/owner/getUsers");
+    //     setStaff(
+    //       fresh.map((u) => ({
+    //         ...u,
+    //         isScored: isToday(u.lastScoreDate),
+    //         score: u.lastScore || 0,
+    //       }))
+    //     );
+    //   } catch (e) {
+    //     console.warn("Refresh staff list failed", e); // silent
+    //   }
 
-//   /* ---------- 1. SUBMIT (only this can fail the save) ---------- */
-//   try {
-//     const payload = { staffId: selectedStaff!.id, scores: scoresArray };
-//     if (selectedStaff!.isScored) {
-//       await axiosInstance.put(`/owner/updateScore/${selectedStaff!.id}`, payload);
-//     } else {
-//       await axiosInstance.post("/owner/submit-score", payload);
-//     }
-//     toast.success("Score saved!"); // ✅ only when submit really worked
-//   } catch (err: any) {
-//     if (err.response?.status === 401) {
-//       localStorage.removeItem("accesstoken");
-//       localStorage.removeItem("refreshtoken");
-//       await logoutOwner();
-//       dispatch(clearUser());
-//       toast.error("Session Expired. Please login again");
-//     } else {
-//       toast.error(err.response?.data?.message || "Save failed");
-//     }
-//     setIsSubmitting(false);
-//     return; // stop here – don’t refresh lists
-//   }
+    //   setView("list");
+    //   setSelectedStaff(null);
+    //   setScores({});
+    //   setIsSubmitting(false);
+    // };
 
-//   try {
-//     const { data: fresh } = await axiosInstance.get<any[]>("/owner/getUsers");
-//     setStaff(
-//       fresh.map((u) => ({
-//         ...u,
-//         isScored: isToday(u.lastScoreDate),
-//         score: u.lastScore || 0,
-//       }))
-//     );
-//   } catch (e) {
-//     console.warn("Refresh staff list failed", e); // silent
-//   }
+    //     const handleSubmit = async () => {
+    //         setIsSubmitting(true);
 
-//   setView("list");
-//   setSelectedStaff(null);
-//   setScores({});
-//   setIsSubmitting(false);
-// };
+    //         /* ---- NEW: convert scores-object to array ---- */
+    //         const scoresArray = Object.entries(scores).map(
+    //             ([kpiId, { score, comment }]) => {
+    //                 const kpi = kpis.find((k) => k.id === kpiId); // ← full KPI row
+    //                 return {
+    //                     kpiId,
+    //                     score,
+    //                     comment,
+    //                     weight: kpi?.weight ?? 1,
+    //                 };
+    //             }
+    //         );
 
-//     const handleSubmit = async () => {
-//         setIsSubmitting(true);
+    //         try {
+    //             const payload = { staffId: selectedStaff!.id, scores: scoresArray };
+    //             if (!selectedStaff) return;
 
-//         /* ---- NEW: convert scores-object to array ---- */
-//         const scoresArray = Object.entries(scores).map(
-//             ([kpiId, { score, comment }]) => {
-//                 const kpi = kpis.find((k) => k.id === kpiId); // ← full KPI row
-//                 return {
-//                     kpiId,
-//                     score,
-//                     comment,
-//                     weight: kpi?.weight ?? 1,
-//                 };
-//             }
-//         );
+    //             if (selectedStaff!.isScored) {
+    //                 await axiosInstance.put(
+    //                     `/owner/updateScore/${selectedStaff!.id}`,
+    //                     payload
+    //                 );
+    //             } else {
+    //                 await axiosInstance.post("/owner/submit-score", payload);
+    //             }
+    //             const { data: fresh } = await axiosInstance.get<any[]>(
+    //                 "/owner/getUsers"
+    //             );
+    //             setStaff(
+    //     fresh.map((u) => {
+    //         const lastScore = u.lastScore || 0; // backend should send this
+    //         return {
+    //             ...u,
+    //             isScored: isToday(u.lastScoreDate),
+    //             score: lastScore,
+    //         };
+    //     })
+    // );
 
-//         try {
-//             const payload = { staffId: selectedStaff!.id, scores: scoresArray }; 
-//             if (!selectedStaff) return;
-
-//             if (selectedStaff!.isScored) {
-//                 await axiosInstance.put(
-//                     `/owner/updateScore/${selectedStaff!.id}`,
-//                     payload
-//                 );
-//             } else {
-//                 await axiosInstance.post("/owner/submit-score", payload); 
-//             }
-//             const { data: fresh } = await axiosInstance.get<any[]>(
-//                 "/owner/getUsers"
-//             );
-//             setStaff(
-//     fresh.map((u) => {
-//         const lastScore = u.lastScore || 0; // backend should send this
-//         return {
-//             ...u,
-//             isScored: isToday(u.lastScoreDate),
-//             score: lastScore,
-//         };
-//     })
-// );
-
-//             setView("list");
-//             setSelectedStaff(null);
-//             setScores({});
-//         } catch (err: any) {
-//             if (err.response?.status === 401) {
-//                 localStorage.removeItem("accesstoken");
-//                 localStorage.removeItem("refreshtoken");
-//                 await logoutOwner();
-//                 dispatch(clearUser());
-//                 toast.error("Session Expired. Please login again");
-//             } else {
-//                toast.error(err.response?.data?.message || "Internal Server Error");
-//             }
-//         } finally {
-//             setIsSubmitting(false);
-//         }
-//     };
+    //             setView("list");
+    //             setSelectedStaff(null);
+    //             setScores({});
+    //         } catch (err: any) {
+    //             if (err.response?.status === 401) {
+    //                 localStorage.removeItem("accesstoken");
+    //                 localStorage.removeItem("refreshtoken");
+    //                 await logoutOwner();
+    //                 dispatch(clearUser());
+    //                 toast.error("Session Expired. Please login again");
+    //             } else {
+    //                toast.error(err.response?.data?.message || "Internal Server Error");
+    //             }
+    //         } finally {
+    //             setIsSubmitting(false);
+    //         }
+    //     };
 
     /* --------------------  Reset filters  -------------------- */
     const handleReset = () => {
@@ -362,12 +398,13 @@ const handleSubmit = async () => {
                         <h1 className="text-xl font-semibold text-gray-900">
                             {isUpdate ? "Update Scores" : "Staff Scoring"}
                         </h1>
-                        <Button
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
                             onClick={() => setView("list")}
-                            variant="outline"
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
                         >
                             Back to List
-                        </Button>
+                        </motion.button>
                     </div>
                 </motion.div>
 
@@ -667,15 +704,15 @@ const handleSubmit = async () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.5 }}
                         >
-                            <Button
+                            <motion.button
+                                whileTap={{ scale: 0.95 }}
                                 onClick={handleSubmit}
                                 disabled={
-                                    isSubmitting ||
-                                    Object.values(scores).some(
-                                        (s) => s.score === 0
-                                    )
-                                }
-                                className="w-full bg-[#FF3F33] hover:bg-[#E6362A] disabled:opacity-50"
+        isSubmitting ||
+        !hasKPIs ||                       // ← NEW
+        Object.values(scores).some((s) => s.score === 0)
+    }
+                                className="w-full inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-[#FF3F33] hover:bg-[#E6362A] text-primary-foreground h-10 px-4 py-2"
                             >
                                 {isSubmitting ? (
                                     <>
@@ -698,14 +735,13 @@ const handleSubmit = async () => {
                                         {isUpdate ? "Update Score" : "Submit"}
                                     </>
                                 )}
-                            </Button>
+                            </motion.button>
                         </motion.div>
                     </motion.div>
                 </div>
             </div>
         );
     }
-
 
     return (
         <div className="space-y-6">
@@ -739,33 +775,30 @@ const handleSubmit = async () => {
                                 Staff Members
                             </CardTitle>
                             <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={() => setSearchOpen((s) => !s)}
-                                    className="hover:bg-gray-100"
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-gray-100 hover:text-accent-foreground h-9 px-3"
                                 >
                                     <Search className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
+                                </motion.button>
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={() => setFilterOpen((s) => !s)}
-                                    className="hover:bg-gray-100"
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-gray-100 hover:text-accent-foreground h-9 px-3"
                                 >
                                     <Filter className="h-4 w-4" />
-                                </Button>
+                                </motion.button>
                                 {(searchQuery ||
                                     selectedRole ||
                                     selectedFloor) && (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
+                                    <motion.button
+                                        whileTap={{ scale: 0.95 }}
                                         onClick={handleReset}
-                                        className="hover:bg-gray-100"
+                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-gray-100 hover:text-accent-foreground h-9 px-3"
                                     >
                                         <X className="h-4 w-4" />
-                                    </Button>
+                                    </motion.button>
                                 )}
                             </div>
                         </div>
@@ -825,18 +858,20 @@ const handleSubmit = async () => {
                                         <Label className="text-sm font-medium">
                                             Floor
                                         </Label>
-                                     <select
-    value={selectedFloor}
-    onChange={(e) => setSelectedFloor(e.target.value)}
-    className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-md text-sm"
-  >
-    <option value="">All Floors</option>
-    {floors.map((f) => (
-      <option key={f} value={f}>
-             {f}
-      </option>
-    ))}
-  </select>
+                                        <select
+                                            value={selectedFloor}
+                                            onChange={(e) =>
+                                                setSelectedFloor(e.target.value)
+                                            }
+                                            className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                        >
+                                            <option value="">All Floors</option>
+                                            {floors.map((f) => (
+                                                <option key={f} value={f}>
+                                                    {f}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </motion.div>
                             )}
@@ -892,11 +927,11 @@ const handleSubmit = async () => {
                                                 )}
                                             </div>
                                             {member.isScored ? (
-                                               <Badge
+                                                <Badge
                                                     variant="outline"
                                                     className="text-xs text-gray-500"
                                                 >
-                                                     Scored
+                                                    Scored
                                                 </Badge>
                                             ) : (
                                                 <Badge

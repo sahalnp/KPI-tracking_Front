@@ -1,8 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft } from "lucide-react"
-import { useNavigate } from "react-router-dom"
-
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +9,14 @@ import {
     CardTitle,
     CardDescription,
 } from "@/components/ui/card";
-import { AlertCircle, Award, Building, Layers, Star,UserX } from "lucide-react";
+import {
+    AlertCircle,
+    Award,
+    Building,
+    Layers,
+    Star,
+    UserX,
+} from "lucide-react";
 
 import {
     Download,
@@ -24,7 +28,7 @@ import {
     TrendingUp,
 } from "lucide-react";
 import { axiosInstance } from "@/api/axios";
-import { logoutOwner } from "@/lib/logoutApi";
+import { logoutSupervisor } from "@/lib/logoutApi";
 import { clearUser } from "@/features/UserSlice";
 import { useDispatch } from "react-redux";
 import { toast } from "sonner";
@@ -36,14 +40,19 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 
 interface StaffData {
-    staffId: string;
+    id: string;
     name: string;
+    uniqueId: string;
     mobile: string;
+    email: string;
     role: string;
     section: string;
     floor: string;
+    active_flag: boolean;
     avgScore: number;
-    joinDate: string;
+    totalKPIs: number;
+    completedKPIs: number;
+    completionRate: number;
 }
 
 interface SummaryData {
@@ -51,11 +60,10 @@ interface SummaryData {
     avgScore: number;
 }
 
-export const StaffReportView: React.FC = () => {
+export const SupervisorStaffReportView: React.FC = () => {
     const [staffReport, setStaffReport] = useState<StaffData[]>([]);
     const [pdfLoading, setPdfLoading] = useState(false);
-    
-const [excelLoading, setExcelLoading] = useState(false);
+    const [excelLoading, setExcelLoading] = useState(false);
     const [summaryData, setSummaryData] = useState<SummaryData>({
         totalStaff: 0,
         avgScore: 0,
@@ -70,7 +78,6 @@ const [excelLoading, setExcelLoading] = useState(false);
         () => new URLSearchParams(location.search),
         [location.search]
     );
-const navigate = useNavigate()
 
     const startDate = query.get("start");
     const endDate = query.get("end");
@@ -84,9 +91,10 @@ const navigate = useNavigate()
             toast.error("Export failed");
         }
     };
+
     const StaffInfo: React.FC<any> = ({
         name,
-        staffId,
+        uniqueId,
         mobile,
         score,
         role,
@@ -100,8 +108,6 @@ const navigate = useNavigate()
         };
 
         const roleClass = roleColors[role] || roleColors["Default"];
-
-    
 
         return (
             <div className="flex justify-between items-start py-2">
@@ -126,7 +132,7 @@ const navigate = useNavigate()
                         </div>
                         <p className="text-xs text-gray-500 font-mono mt-1">
                             {" "}
-                            ID: {staffId} &nbsp;|&nbsp; Phone: {mobile || "N/A"}
+                            ID: {uniqueId}
                         </p>
                     </div>
                 </div>
@@ -139,11 +145,8 @@ const navigate = useNavigate()
         );
     };
 
-    const LocationBlock: React.FC<any> = ({ section, floor }) => (
+    const LocationBlock: React.FC<any> = ({ section, mobile }) => (
         <div className="pt-4">
-            {/* <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-      Location
-    </p> */}
             <div className="grid grid-cols-2 gap-3">
                 {/* Section Box */}
                 <div className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
@@ -158,11 +161,11 @@ const navigate = useNavigate()
 
                 {/* Floor Box */}
                 <div className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
-                    <Layers className="w-4 h-4 text-gray-400 mt-0.5" />
+                    <Phone className="w-4 h-4 text-gray-400 mt-0.5" />
                     <div>
-                        <p className="text-xs text-gray-500">Floor</p>
+                        <p className="text-xs text-gray-500">Phone</p>
                         <p className="text-sm font-semibold text-gray-900">
-                            {floor}
+                            {mobile}
                         </p>
                     </div>
                 </div>
@@ -174,9 +177,10 @@ const navigate = useNavigate()
         const fetchStaffReport = async () => {
             setIsLoading(true);
             setError(null);
-
+            console.log("jhghyjgjhguiqwgqwuirqwiurqwgyirgqwuiyrgqwirygqwyrigqwyrfg");
+            
             try {
-                const res = await axiosInstance.get("/owner/staffReport", {
+                const res = await axiosInstance.get("/supervisor/staffReport", {
                     params: {
                         start: startDate,
                         end: endDate,
@@ -203,13 +207,15 @@ const navigate = useNavigate()
                 console.error("Fetch Staff Report error:", err);
 
                 if (err.response?.status === 401) {
-                    const response:any = await logoutOwner();
-                    if (response.success) {
+                    const response: any = await logoutSupervisor();
+                    if (response?.success) {
                         localStorage.removeItem("accessToken");
                         localStorage.removeItem("refreshToken");
                         dispatch(clearUser());
+                        toast.error("Session Expired. Please login again");
                     } else {
-                        console.error("Logout failed on backend");
+                        console.error("Internal server error");
+                        toast.error("Something went wrong. Please try again.");
                     }
                 } else if (err.response?.status === 400) {
                     setError(
@@ -256,71 +262,72 @@ const navigate = useNavigate()
         return "All Time";
     };
 
-const handleExportPDF = async () => {
-  setPdfLoading(true);                       // <- start spinner
-  try {
-    const { data } = await axiosInstance.get(
-      `/owner/staffReport/export?format=pdf&start=${startDate}&end=${endDate}`,
-      { responseType: 'blob' }
-    );
+    const handleExportPDF = async () => {
+        setPdfLoading(true);
+        try {
+            const { data } = await axiosInstance.get(
+                `/supervisor/staffReport/export?format=pdf&start=${startDate}&end=${endDate}`,
+                { responseType: "blob" }
+            );
 
-    const blob = new Blob([data], { type: 'application/pdf' });
-    saveAs(blob, 'Staff-Report.pdf');
-    toast.success('PDF download started');
-  } catch (err:any) {
-    if (err.response?.status === 401) {
-                    const response:any = await logoutOwner();
-                    if (response.success) {
-                        localStorage.removeItem("accessToken");
-                        localStorage.removeItem("refreshToken");
-                        dispatch(clearUser());
-                    } else {
-                        console.error("Logout failed on backend");
-                    }
+            const blob = new Blob([data], { type: "application/pdf" });
+            saveAs(blob, "Staff-Report.pdf");
+            toast.success("PDF download started");
+        } catch (err: any) {
+            if (err.response?.status === 401) {
+                const response: any = await logoutSupervisor();
+                if (response?.success) {
+                    localStorage.removeItem("accessToken");
+                    localStorage.removeItem("refreshToken");
+                    dispatch(clearUser());
+                    toast.error("Session Expired. Please login again");
+                } else {
+                    console.error("Internal server error");
+                    toast.error("Something went wrong. Please try again.");
                 }
-    toast.error('Failed to download PDF');
-  } finally {
-    setPdfLoading(false);                    // <- stop spinner
-  }
-};
+            }
+            toast.error("Failed to download PDF");
+        } finally {
+            setPdfLoading(false);
+        }
+    };
 
-
-  const handleExportExcel = async () => {
-    setModalOpen(false);
-    try {
-
-        const { data } = await axiosInstance.get(`/owner/staffReport/export`, {
-            params: { start: startDate, end: endDate, format: "excel" },
-            responseType: "blob", // important for file download
-        });
-
-        // Create a downloadable link
-        const fileName = `staff-report-${startDate}-${endDate}.xlsx`;
-        const url = window.URL.createObjectURL(data); // data is already a Blob
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", fileName);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-
-    } catch (err:any) {
-         if (err.response?.status === 401) {
-                    const response:any = await logoutOwner();
-                    if (response.success) {
-                        localStorage.removeItem("accessToken");
-                        localStorage.removeItem("refreshToken");
-                        dispatch(clearUser());
-                    } else {
-                        console.error("Logout failed on backend");
-                    }
+    const handleExportExcel = async () => {
+        setModalOpen(false);
+        try {
+            const { data } = await axiosInstance.get(
+                `/supervisor/staffReport/export`,
+                {
+                    params: { start: startDate, end: endDate, format: "excel" },
+                    responseType: "blob",
                 }
-        toast.error("Failed to export Excel file");
-    }
-};
+            );
 
-
+            const fileName = `staff-report-${startDate}-${endDate}.xlsx`;
+            const url = window.URL.createObjectURL(data);
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (err: any) {
+            if (err.response?.status === 401) {
+                const response: any = await logoutSupervisor();
+                if (response?.success) {
+                    localStorage.removeItem("accessToken");
+                    localStorage.removeItem("refreshToken");
+                    dispatch(clearUser());
+                    toast.error("Session Expired. Please login again");
+                } else {
+                    console.error("Internal server error");
+                    toast.error("Something went wrong. Please try again.");
+                }
+            }
+            toast.error("Failed to export Excel file");
+        }
+    };
 
     if (currentView !== "staffReport") return null;
 
@@ -354,51 +361,29 @@ const handleExportPDF = async () => {
 
     return (
         <div className="space-y-6 p-6">
-  
-    {/* <Button
-        className="bg-transparent border border-gray-300 hover:bg-gray-100 text-black p-2 rounded-full"
-        onClick={() => setModalOpen(true)}
-    >
-        <Download className="h-7 w-7" />
-    </Button> */}
+            <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="bg-white rounded-lg shadow-sm p-4 flex items-center justify-between"
+            >
+                <div>
+                    <h1 className="text-xl font-semibold text-gray-900">
+                        Staff Reports
+                    </h1>
+                    <p className="text-sm text-gray-600">
+                        {getDateRangeLabel()}
+                    </p>
+                </div>
 
-
-    
-   
-<motion.div
-    initial={{ opacity: 0, y: 40 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5, ease: "easeOut" }}
-    className="bg-white rounded-lg shadow-sm p-4 flex items-center justify-between"
->
-
-          <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-        onClick={() => navigate(-1)}
-      className="p-2 rounded-full hover:bg-red-50 transition"
-    >
-      <ArrowLeft className="w-5 h-5 text-red-500" />
-    
-    </motion.button>
-    <div>
-        <h1 className="text-xl font-semibold text-gray-900">
-            Staff Reports
-        </h1>
-        <p className="text-sm text-gray-600">
-            {getDateRangeLabel()}
-        </p>
-    </div>
-
-    {/* Export Button */}
-    <Button
-        className="bg-transparent border border-gray-300 p-2 rounded-full transition-transform duration-200 hover:scale-110 hover:bg-gray-100 shadow-sm"
-        onClick={() => setModalOpen(true)}
-    >
-        <Download className="h-8 w-8 text-red-500" />
-    </Button>
-</motion.div>
-
+                {/* Export Button */}
+                <Button
+                    className="bg-transparent border border-gray-300 p-2 rounded-full transition-transform duration-200 hover:scale-110 hover:bg-gray-100 shadow-sm"
+                    onClick={() => setModalOpen(true)}
+                >
+                    <Download className="h-8 w-8 text-red-500" />
+                </Button>
+            </motion.div>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-2 gap-4">
@@ -453,19 +438,19 @@ const handleExportPDF = async () => {
 
             {/* Staff Cards Grid */}
             {staffReport.length === 0 ? (
-    <Card>
-        <CardContent className="p-8 text-center text-gray-500 flex flex-col items-center justify-center space-y-2">
- 
-            <UserX className="h-12 w-12 text-gray-400" />
-
-            <span>No staff data found for the selected date range.</span>
-        </CardContent>
-    </Card>
+                <Card>
+                    <CardContent className="p-8 text-center text-gray-500 flex flex-col items-center justify-center space-y-2">
+                        <UserX className="h-12 w-12 text-gray-400" />
+                        <span>
+                            No staff data found for the selected date range.
+                        </span>
+                    </CardContent>
+                </Card>
             ) : (
                 <div className="space-y-4">
                     {staffReport.map((staff, index) => (
                         <motion.div
-                            key={staff.staffId}
+                            key={staff.id}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.05 }}
@@ -473,14 +458,15 @@ const handleExportPDF = async () => {
                             <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden p-4">
                                 <StaffInfo
                                     name={staff.name}
-                                    staffId={staff.staffId}
+                                    uniqueId={staff.uniqueId}
                                     mobile={staff.mobile}
                                     score={staff.avgScore}
                                     role={staff.role}
                                 />
+
                                 <LocationBlock
                                     section={staff.section}
-                                    floor={staff.floor}
+                                    mobile={staff.mobile}
                                 />
                             </div>
                         </motion.div>
@@ -529,73 +515,38 @@ const handleExportPDF = async () => {
                                     Choose a format:
                                 </p>
 
-
-                              {/* ----------  PDF BUTTON  ---------- */}
-<button
-  onClick={handleExportPDF}
-  disabled={pdfLoading}
-  className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
-              ${pdfLoading
-                  ? 'bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed'
-                  : 'bg-white border-gray-200 hover:bg-gray-50 active:scale-95'}`}
->
-  <div className={`p-2 rounded-lg ${pdfLoading ? 'bg-gray-200' : 'bg-red-100'}`}>
-    {pdfLoading ? (
-      <div className="w-5 h-5 flex items-center justify-center">
-        {/* tiny spinner */}
-        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    ) : (
-      <FileText className="w-5 h-5 text-red-600" />
-    )}
-  </div>
-
-  <div className="text-left">
-    <div className="font-semibold text-gray-900">
-      {pdfLoading ? 'Preparing PDF…' : 'Export as PDF'}
-    </div>
-    <div className="text-xs text-gray-500">Portable Document</div>
-  </div>
-</button>
-
-{/* ----------  EXCEL BUTTON  ---------- */}
-<button
-  onClick={handleExportExcel}
-  disabled={excelLoading}
-  className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
-              ${excelLoading
-                  ? 'bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed'
-                  : 'bg-white border-gray-200 hover:bg-gray-50 active:scale-95'}`}
->
-  <div className={`p-2 rounded-lg ${excelLoading ? 'bg-gray-200' : 'bg-green-100'}`}>
-    {excelLoading ? (
-      <div className="w-5 h-5 flex items-center justify-center">
-        {/* tiny spinner */}
-        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    ) : (
-      <Sheet className="w-5 h-5 text-green-600" />
-    )}
-  </div>
-
-  <div className="text-left">
-    <div className="font-semibold text-gray-900">
-      {excelLoading ? 'Preparing Excel…' : 'Export as Excel'}
-    </div>
-    <div className="text-xs text-gray-500">Spreadsheet (.xlsx)</div>
-  </div>
-</button>
-                                {/* <button
+                                {/* PDF Button */}
+                                <button
                                     onClick={handleExportPDF}
-                                    className="w-full flex items-center gap-4 px-5 py-3 rounded-xl bg-white border border-gray-200
-  hover:bg-gray-50 active:scale-95 transition-all duration-200 shadow-sm"
+                                    disabled={pdfLoading}
+                                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                                    ${
+                                        pdfLoading
+                                            ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
+                                            : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
+                                    }`}
                                 >
-                                    <div className="bg-red-100 p-2 rounded-lg">
-                                        <FileText className="w-5 h-5 text-red-600" />
+                                    <div
+                                        className={`p-2 rounded-lg ${
+                                            pdfLoading
+                                                ? "bg-gray-200"
+                                                : "bg-red-100"
+                                        }`}
+                                    >
+                                        {pdfLoading ? (
+                                            <div className="w-5 h-5 flex items-center justify-center">
+                                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                            </div>
+                                        ) : (
+                                            <FileText className="w-5 h-5 text-red-600" />
+                                        )}
                                     </div>
+
                                     <div className="text-left">
                                         <div className="font-semibold text-gray-900">
-                                            Export as PDF
+                                            {pdfLoading
+                                                ? "Preparing PDF…"
+                                                : "Export as PDF"}
                                         </div>
                                         <div className="text-xs text-gray-500">
                                             Portable Document
@@ -603,24 +554,44 @@ const handleExportPDF = async () => {
                                     </div>
                                 </button>
 
-                  
+                                {/* Excel Button */}
                                 <button
                                     onClick={handleExportExcel}
-                                    className="w-full flex items-center gap-4 px-5 py-3 rounded-xl bg-white border border-gray-200
-  hover:bg-gray-50 active:scale-95 transition-all duration-200 shadow-sm"
+                                    disabled={excelLoading}
+                                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                                    ${
+                                        excelLoading
+                                            ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
+                                            : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
+                                    }`}
                                 >
-                                    <div className="bg-green-100 p-2 rounded-lg">
-                                        <Sheet className="w-5 h-5 text-green-600" />
+                                    <div
+                                        className={`p-2 rounded-lg ${
+                                            excelLoading
+                                                ? "bg-gray-200"
+                                                : "bg-green-100"
+                                        }`}
+                                    >
+                                        {excelLoading ? (
+                                            <div className="w-5 h-5 flex items-center justify-center">
+                                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                            </div>
+                                        ) : (
+                                            <Sheet className="w-5 h-5 text-green-600" />
+                                        )}
                                     </div>
+
                                     <div className="text-left">
                                         <div className="font-semibold text-gray-900">
-                                            Export as Excel
+                                            {excelLoading
+                                                ? "Preparing Excel…"
+                                                : "Export as Excel"}
                                         </div>
                                         <div className="text-xs text-gray-500">
                                             Spreadsheet (.xlsx)
                                         </div>
                                     </div>
-                                </button> */}
+                                </button>
                             </div>
 
                             {/* Footer */}

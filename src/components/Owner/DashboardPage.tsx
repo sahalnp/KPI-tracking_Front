@@ -1,419 +1,38 @@
 
 
-
-// // import React, { useState, useEffect } from "react";
-// // import { Phone, UserX, Home, User2 } from "lucide-react";
-// // import { motion } from "framer-motion";
-// // import {
-// //     Users,
-// //     Building,
-// //     Target,
-// //     Calendar,
-// //     UserPlus,
-// //     XCircle,
-// //     History,
-// // } from "lucide-react";
-
-// // import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-// // import { axiosInstance } from "@/api/axios";
-// // import { LoadingSpinner } from "../ui/spinner";
-// // import { cva } from "class-variance-authority";
-// // import { Badge } from "../ui/badge";
-// // import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "../ui/card";
-// // import { useDispatch } from "react-redux";
-// // import { clearUser } from "@/features/UserSlice";
-// // import { logoutOwner } from "@/lib/logoutApi";
-// // import { WalkOutManagement } from "../Supervisor/WalkOutManagement";
-// // import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-
-// // // ---------------- Types ----------------
-// // type KPI = {
-// //     id: string;
-// //     name: string;
-// //     frequency: "daily" | "weekly" | "monthly";
-// //     target: number;
-// //     weight: number;
-// //     max_points: number;
-// //     isDlt: boolean;
-// //     status: boolean;
-// // };
-
-// // type User = {
-// //     id: string;
-// //     name: string;
-// //     role: string;
-// //     mobile: string;
-// //     section: string;
-// //     created_at: string;
-// //     floor_id: number;
-// //     avatar?: string;
-// // };
-
-// // // ---------------- Helpers ----------------
-// // const freqBadge = cva(
-// //     "text-[10px] px-2 py-0.5 rounded-full font-semibold tracking-wide",
-// //     {
-// //         variants: {
-// //             frequency: {
-// //                 daily: "bg-emerald-100 text-emerald-700",
-// //                 weekly: "bg-sky-100 text-sky-700",
-// //                 monthly: "bg-violet-100 text-violet-700",
-// //             },
-// //         },
-// //     }
-// // );
-
-// // const SummaryCard: React.FC<{
-// //     title: string;
-// //     value: number | string;
-// //     icon: React.ComponentType<{ className?: string }>;
-// //     color: string;
-// //     subtitle?: string;
-// // }> = ({ title, value, icon: Icon, color, subtitle }) => (
-// //     <div className="h-full bg-white rounded-lg border p-4 shadow-sm">
-// //         <div className="flex items-center justify-between">
-// //             <div>
-// //                 <p className="text-sm text-gray-600">{title}</p>
-// //                 <p className="text-xl font-bold">{value}</p>
-// //                 {subtitle && <p className="text-xs text-gray-600">{subtitle}</p>}
-// //             </div>
-// //             <Icon className={`h-6 w-6 ${color}`} />
-// //         </div>
-// //     </div>
-// // );
-
-// // // ---------------- Main Dashboard ----------------
-// // export default function OwnerDashboard() {
-// //     const [loading, setLoading] = useState(true);
-// //     const [error, setError] = useState<string | null>(null);
-// //     const [activeTab, setActiveTab] = useState<"user" | "kpi" | "account">(
-// //         "user"
-// //     );
-
-// //     const [totalUsers, setTotalUsers] = useState(0);
-// //     const [totalFloors, setTotalFloors] = useState(0);
-// //     const [totalKPIs, setTotalKPIs] = useState(0);
-// //     const [totalWalkouts, setTotalWalkouts] = useState(0);
-// //     const dispatch = useDispatch();
-
-// //     useEffect(() => {
-// //         const fetchDashboard = async () => {
-// //             setLoading(true);
-// //             try {
-// //                 const res = await axiosInstance.get("/owner/details");
-// //                 const data = res.data || {};
-
-// //                 setTotalUsers(data.totalUsers ?? 0);
-// //                 setTotalFloors(data.totalFloors ?? 0);
-// //                 setTotalKPIs(data.totalKPIs ?? 0);
-// //                 setTotalWalkouts(data.walkouts ?? 0);
-// //             } catch (err: any) {
-// //                 if (err.response?.status === 401) {
-// //                     localStorage.removeItem("accessToken");
-// //                     localStorage.removeItem("refreshToken");
-// //                     await logoutOwner();
-// //                     dispatch(clearUser());
-// //                 }
-// //                 setError("Failed to load dashboard data.");
-// //             } finally {
-// //                 setLoading(false);
-// //             }
-// //         };
-
-// //         fetchDashboard();
-// //     }, []);
-
-// //     if (loading) return <LoadingSpinner />;
-
-// //     if (error)
-// //         return (
-// //             <div className="h-full flex items-center justify-center">
-// //                 <div className="text-center">
-// //                     <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-// //                     <p className="text-red-600 mb-4">{error}</p>
-// //                     <button
-// //                         onClick={() => window.location.reload()}
-// //                         className="px-4 py-2 bg-[#FF3F33] text-white rounded-lg hover:bg-red-600 transition-colors"
-// //                     >
-// //                         Retry
-// //                     </button>
-// //                 </div>
-// //             </div>
-// //         );
-
-// //     return (
-// //         <div className="h-full overflow-y-auto bg-gray-50 p-4 space-y-6 max-w-5xl mx-auto">
-// //             <div className="bg-white rounded-lg shadow-sm p-4">
-// //                 <div className="flex items-center justify-between mb-2">
-// //                     <h1 className="text-xl font-semibold text-gray-900">
-// //                         Owner Dashboard
-// //                     </h1>
-// //                 </div>
-// //                 <p className="text-sm text-gray-600">
-// //                     Store overview and analytics
-// //                 </p>
-// //             </div>
-
-// //             {/* Tabs */}
-// //             <Tabs
-// //                 value={activeTab}
-// //                 // onValueChange={setActiveTab}
-// //                 className="space-y-6 mt-8"
-// //             >
-// //                 <TabsList className="relative grid w-full grid-cols-3 bg-gray-100 p-1 rounded-lg overflow-hidden">
-// //                     <motion.div
-// //                         layout
-// //                         transition={{
-// //                             type: "spring",
-// //                             stiffness: 300,
-// //                             damping: 25,
-// //                         }}
-// //                         className="absolute top-1 bottom-1 w-1/3 bg-white rounded-md shadow-sm"
-// //                         animate={{
-// //                             x:
-// //                                 activeTab === "user"
-// //                                     ? "0%"
-// //                                     : activeTab === "kpi"
-// //                                     ? "100%"
-// //                                     : "200%",
-// //                         }}
-// //                     />
-
-// //                     <TabsTrigger
-// //                         value="user"
-// //                         className="flex items-center gap-2 rounded-md transition-all relative z-10"
-// //                     >
-// //                         <Users className="h-4 w-4" />
-// //                         <span className="hidden sm:inline">User Management</span>
-// //                         <span className="sm:hidden">User</span>
-// //                     </TabsTrigger>
-
-// //                     <TabsTrigger
-// //                         value="kpi"
-// //                         className="flex items-center gap-2 rounded-md transition-all relative z-10"
-// //                     >
-// //                         <Target className="h-4 w-4" />
-// //                         <span className="hidden sm:inline">KPI Management</span>
-// //                         <span className="sm:hidden">KPI</span>
-// //                     </TabsTrigger>
-
-// //                     <TabsTrigger
-// //                         value="account"
-// //                         className="flex items-center gap-2 rounded-md transition-all relative z-10"
-// //                     >
-// //                         <User2 className="h-4 w-4" />
-// //                         <span className="hidden sm:inline">
-// //                             Account Settings
-// //                         </span>
-// //                         <span className="sm:hidden">Account</span>
-// //                     </TabsTrigger>
-// //                 </TabsList>
-
-// //                 {/* User Management Tab */}
-// //                 <TabsContent value="walkout" className="space-y-6">
-// //                     <WalkOutManagement />
-// //                 </TabsContent>
-
-               
-            
-// //             </Tabs>
-// //         </div>
-// //     );
-// // }
-
-
-
-
-// import React, { useState, useEffect } from "react";
-// import { Home, History, XCircle } from "lucide-react";
-// import { motion } from "framer-motion";
-// import { axiosInstance } from "@/api/axios";
-// import { LoadingSpinner } from "../ui/spinner";
-// import { useDispatch } from "react-redux";
-// import { clearUser } from "@/features/UserSlice";
-// import { logoutOwner } from "@/lib/logoutApi";
-// import { WalkOutManagement } from "../Supervisor/WalkOutManagement";
-// import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-
-// const SummaryCard: React.FC<{
-//     title: string;
-//     value: number | string;
-//     icon: React.ComponentType<{ className?: string }>;
-//     color: string;
-//     subtitle?: string;
-// }> = ({ title, value, icon: Icon, color, subtitle }) => (
-//     <div className="h-full bg-white rounded-lg border p-4 shadow-sm">
-//         <div className="flex items-center justify-between">
-//             <div>
-//                 <p className="text-sm text-gray-600">{title}</p>
-//                 <p className="text-xl font-bold">{value}</p>
-//                 {subtitle && <p className="text-xs text-gray-600">{subtitle}</p>}
-//             </div>
-//             <Icon className={`h-6 w-6 ${color}`} />
-//         </div>
-//     </div>
-// );
-
-// export default function OwnerDashboard() {
-//     const [loading, setLoading] = useState(true);
-//     const [error, setError] = useState<string | null>(null);
-//     const [activeTab, setActiveTab] = useState<"home" | "walkouts">("home");
-
-//     const [totalUsers, setTotalUsers] = useState(0);
-//     const [totalFloors, setTotalFloors] = useState(0);
-//     const [totalKPIs, setTotalKPIs] = useState(0);
-//     const [totalWalkouts, setTotalWalkouts] = useState(0);
-//     const dispatch = useDispatch();
-
-//     useEffect(() => {
-//         const fetchDashboard = async () => {
-//             setLoading(true);
-//             try {
-//                 const res = await axiosInstance.get("/owner/details");
-//                 const data = res.data || {};
-
-//                 setTotalUsers(data.totalUsers ?? 0);
-//                 setTotalFloors(data.totalFloors ?? 0);
-//                 setTotalKPIs(data.totalKPIs ?? 0);
-//                 setTotalWalkouts(data.walkouts ?? 0);
-//             } catch (err: any) {
-//                 if (err.response?.status === 401) {
-//                     localStorage.removeItem("accessToken");
-//                     localStorage.removeItem("refreshToken");
-//                     await logoutOwner();
-//                     dispatch(clearUser());
-//                 }
-//                 setError("Failed to load dashboard data.");
-//             } finally {
-//                 setLoading(false);
-//             }
-//         };
-
-//         fetchDashboard();
-//     }, []);
-
-//     if (loading) return <LoadingSpinner />;
-
-//     if (error)
-//         return (
-//             <div className="h-full flex items-center justify-center">
-//                 <div className="text-center">
-//                     <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-//                     <p className="text-red-600 mb-4">{error}</p>
-//                     <button
-//                         onClick={() => window.location.reload()}
-//                         className="px-4 py-2 bg-[#FF3F33] text-white rounded-lg hover:bg-red-600 transition-colors"
-//                     >
-//                         Retry
-//                     </button>
-//                 </div>
-//             </div>
-//         );
-
-//     return (
-//         <div className="h-full overflow-y-auto bg-gray-50 p-4 space-y-6 max-w-5xl mx-auto">
-//             <div className="bg-white rounded-lg shadow-sm p-4">
-//                 <div className="flex items-center justify-between mb-2">
-//                     <h1 className="text-xl font-semibold text-gray-900">
-//                         Owner Dashboard
-//                     </h1>
-//                 </div>
-//                 <p className="text-sm text-gray-600">
-//                     Store overview and analytics
-//                 </p>
-//             </div>
-
-//             {/* Tabs */}
-//             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 mt-8">
-//                 <TabsList className="relative grid w-full grid-cols-2 bg-gray-100 p-1 rounded-lg overflow-hidden">
-//                     {/* Sliding indicator */}
-//                     <motion.div
-//                         layout
-//                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-//                         className="absolute top-1 bottom-1 w-1/2 bg-white rounded-md shadow-sm"
-//                         animate={{
-//                             x: activeTab === "home" ? "0%" : "100%",
-//                         }}
-//                     />
-
-//                     <TabsTrigger
-//                         value="home"
-//                         className="flex items-center gap-2 rounded-md transition-all relative z-10"
-//                     >
-//                         <Home className="h-4 w-4" />
-//                         <span>Home</span>
-//                     </TabsTrigger>
-
-//                     <TabsTrigger
-//                         value="walkouts"
-//                         className="flex items-center gap-2 rounded-md transition-all relative z-10"
-//                     >
-//                         <History className="h-4 w-4" />
-//                         <span>Walkouts</span>
-//                     </TabsTrigger>
-//                 </TabsList>
-
-//                 {/* Home Tab */}
-//                 <TabsContent value="home" className="space-y-6">
-//                     {/* Your summary cards / dashboard content goes here */}
-//                 </TabsContent>
-
-//                 {/* Walkouts Tab */}
-//                 <TabsContent value="walkouts" className="space-y-6">
-//                     <WalkOutManagement />
-//                 </TabsContent>
-//             </Tabs>
-//         </div>
-//     );
-// }
-
-
-
 import React, { useState, useEffect } from "react";
-import { Phone, Home, History, XCircle } from "lucide-react";
-import { motion } from "framer-motion";
+import { Phone, Home, History, XCircle, BarChart3, UserX } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Users, Building, Target, Calendar, UserPlus } from "lucide-react";
 import {
-    Users,
-    Building,
-    Target,
-    Calendar,
-    UserPlus,
-} from "lucide-react";
+    LineChart,
+    Line,
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+} from "recharts";
 
-// Import actual components (adjust paths as needed)
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardContent,
+    CardDescription,
+} from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { axiosInstance } from "@/api/axios";
 import { LoadingSpinner } from "@/components/ui/spinner";
+
 import { useDispatch } from "react-redux";
 import { clearUser } from "@/features/UserSlice";
 import { logoutOwner } from "@/lib/logoutApi";
-import { WalkOutManagement } from "@/components/Supervisor/WalkOutManagement";
+import { WalkOutManagementOwner } from "./Walkouts";
 
-// ---------------- Types ----------------
-type KPI = {
-    id: string;
-    name: string;
-    frequency: "daily" | "weekly" | "monthly";
-    target: number;
-    weight: number;
-    max_points: number;
-    isDlt: boolean;
-    status: boolean;
-};
 
-type User = {
-    id: string;
-    name: string;
-    role: string;
-    mobile: string;
-    section: string;
-    created_at: string;
-    floor_id: number;
-    avatar?: string;
-};
 
 // ---------------- Components ----------------
 const SummaryCard: React.FC<{
@@ -423,68 +42,197 @@ const SummaryCard: React.FC<{
     color: string;
     subtitle?: string;
 }> = ({ title, value, icon: Icon, color, subtitle }) => (
-    <div className="h-full bg-white rounded-lg border p-4 shadow-sm">
-        <div className="flex items-center justify-between">
-            <div>
-                <p className="text-sm text-gray-600">{title}</p>
-                <p className="text-xl font-bold">{value}</p>
-                {subtitle && <p className="text-xs text-gray-600">{subtitle}</p>}
+    <Card className="h-full">
+        <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+                <div>
+                    <p className="text-sm text-gray-600">{title}</p>
+                    {/* <p className="text-xl font-bold">{value}</p> */}
+                    <p className="text-xl font-bold">{typeof value === "number" ?  formatNumberShort(value) : value}</p>
+
+                    {subtitle && (
+                        <p className="text-xs text-gray-600">{subtitle}</p>
+                    )}
+                </div>
+                <Icon className={`h-6 w-6 ${color}`} />
             </div>
-            <Icon className={`h-6 w-6 ${color}`} />
-        </div>
-    </div>
+        </CardContent>
+    </Card>
 );
-
-
+export const formatNumberShort = (num: number) => {
+    if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+    if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+    return num.toString();
+};
 // ---------------- Main Dashboard ----------------
 export default function OwnerDashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<"home" | "walkouts">("home");
+    const [direction, setDirection] = useState<"left" | "right">("right");
 
     const [totalUsers, setTotalUsers] = useState(0);
     const [totalFloors, setTotalFloors] = useState(0);
     const [totalKPIs, setTotalKPIs] = useState(0);
     const [totalWalkouts, setTotalWalkouts] = useState(0);
-    const [leavesThisMonth, setLeavesThisMonth] = useState(0);
-    const [recentKPIs, setRecentKPIs] = useState<KPI[]>([]);
-    const [recentUsers, setRecentUsers] = useState<User[]>([]);
-    const [recentActivity, setRecentActivity] = useState<any[]>([]);
-    
-    const dispatch = useDispatch();
+    const dispatch=useDispatch()
 
-    useEffect(() => {
-        const storedActivity = localStorage.getItem("SupervisorRecentActivity");
-        if (storedActivity) {
-            const parsed: any[] = JSON.parse(storedActivity);
-            setRecentActivity(parsed.slice(0, 5));
+    // Graph data states
+    const [selectedGraphType, setSelectedGraphType] = useState<
+         "walkouts" | "staff" | "kpi"
+    >("staff");
+    const [graphData, setGraphData] = useState<any[]>([]);
+    const [floorPerformanceData, setFloorPerformanceData] = useState<any[]>([]);
+    const [attendanceData, setAttendanceData] = useState<any[]>([]);
+    const [graphLoading, setGraphLoading] = useState(false);
+
+    // Format currency helper
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(value);
+    };
+// Format big numbers (500000 → 500K, 1200000 → 1.2M)
+const formatNumberShort = (num: number) => {
+    if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+    if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+    return num.toString();
+};
+
+    // Fetch graph data
+    const fetchGraphData = async (type: string) => {
+        setGraphLoading(true);
+        try {
+            const res = await axiosInstance.get(
+                `/owner/dashboard/graph?type=${type}&months=4`
+            );
+            console.log(res.data,"7879879798789");
+            
+            setGraphData(res.data.data);
+        } catch (err: any) {
+            if (err.response?.status === 401) {
+                    const response:any = await logoutOwner();
+                    if (response.success) {
+                        localStorage.removeItem("accessToken");
+                        localStorage.removeItem("refreshToken");
+                        dispatch(clearUser());
+                    } else {
+                        console.error("Logout failed on backend");
+                    }
+                }
+        } finally {
+            setGraphLoading(false);
         }
-    }, []);
+    };
+
+    // Fetch floor performance data
+    const fetchFloorPerformanceData = async () => {
+        try {
+            const res = await axiosInstance.get(
+                "/owner/dashboard/floor-performance"
+            );
+            console.log(res.data,"1234567890-qwertyuio");
+            
+            setFloorPerformanceData(res.data.data);
+        } catch (err: any) {
+             if (err.response?.status === 401) {
+                    const response:any = await logoutOwner();
+                    if (response.success) {
+                        localStorage.removeItem("accessToken");
+                        localStorage.removeItem("refreshToken");
+                        dispatch(clearUser());
+                    } else {
+                        console.error("Logout failed on backend");
+                    }
+                }
+            setError("Failed to load floor performance data.");
+        }
+    };
+
+    // Fetch attendance data
+    const fetchAttendanceData = async () => {
+        try {
+            const res = await axiosInstance.get(
+                "/owner/dashboard/floor-attendance"
+            );
+             console.log(res.data,"!!!!!1234567890-qwertyuio");
+            const attendanceData = res.data.data || [];
+            
+            // If no attendance data, try to get floors and show with 0 values
+            if (attendanceData.length === 0) {
+                try {
+                    const floorsRes = await axiosInstance.get("/owner/getFloors");
+                     console.log(res.data,"$$$$1234567890-qwertyuio");
+                    const floors = floorsRes.data.floors || [];
+                    
+                    const emptyAttendanceData = floors.map((floor: any) => ({
+                        floor: floor.name,
+                        attendance: 0,
+                    }));
+                    
+                    setAttendanceData(emptyAttendanceData);
+                } catch {
+                    setAttendanceData([]);
+                }
+            } else {
+                setAttendanceData(attendanceData);
+            }
+        } catch (err: any) {
+             if (err.response?.status === 401) {
+                    const response:any = await logoutOwner();
+                    if (response.success) {
+                        localStorage.removeItem("accessToken");
+                        localStorage.removeItem("refreshToken");
+                        dispatch(clearUser());
+                    } else {
+                        console.error("Logout failed on backend");
+                    }
+                } else {
+                    // If API fails, try to get floors and show with 0 values
+                    try {
+                        const floorsRes = await axiosInstance.get("/owner/getFloors");
+                         console.log(floorsRes.data,"####1234567890-qwertyuio");
+                        const floors = floorsRes.data.floors || [];
+                        
+                        const emptyAttendanceData = floors.map((floor: any) => ({
+                            floor: floor.name,
+                            attendance: 0,
+                        }));
+                        
+                        setAttendanceData(emptyAttendanceData);
+                    } catch {
+                        setAttendanceData([]);
+                    }
+                }
+        }
+    };
 
     useEffect(() => {
         const fetchDashboard = async () => {
             setLoading(true);
             try {
                 const res = await axiosInstance.get("/owner/details");
+                console.log(res.data,"sdjfklsdjfklfjksldf");
+                
                 const data = res.data || {};
 
                 setTotalUsers(data.totalUsers ?? 0);
                 setTotalFloors(data.totalFloors ?? 0);
                 setTotalKPIs(data.totalKPIs ?? 0);
-                setTotalWalkouts(data.walkouts ?? 0);
-                setLeavesThisMonth(data.leavesThisMonth ?? 0);
-                setRecentKPIs(
-                    Array.isArray(data.recentKPIs) ? data.recentKPIs : []
-                );
-                setRecentUsers(
-                    Array.isArray(data.recentUsers) ? data.recentUsers : []
-                );
+                setTotalWalkouts(data.totalWalkouts ?? 0);
             } catch (err: any) {
-                if (err.response?.status === 401) {
-                    localStorage.removeItem("accessToken");
-                    localStorage.removeItem("refreshToken");
-                    await logoutOwner();
-                    dispatch(clearUser());
+                 if (err.response?.status === 401) {
+                    const response:any = await logoutOwner();
+                    if (response.success) {
+                        localStorage.removeItem("accessToken");
+                        localStorage.removeItem("refreshToken");
+                        dispatch(clearUser());
+                    } else {
+                        console.error("Logout failed on backend");
+                    }
                 }
                 setError("Failed to load dashboard data.");
             } finally {
@@ -493,7 +241,13 @@ export default function OwnerDashboard() {
         };
 
         fetchDashboard();
-    }, [dispatch]);
+    }, []);
+
+    useEffect(() => {
+        fetchGraphData(selectedGraphType);
+        fetchFloorPerformanceData();
+        fetchAttendanceData();
+    }, [selectedGraphType]);
 
     if (loading) return <LoadingSpinner />;
 
@@ -515,20 +269,26 @@ export default function OwnerDashboard() {
 
     return (
         <div className="h-full overflow-y-auto bg-gray-50 p-4 space-y-6 max-w-5xl mx-auto">
-            <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="flex items-center justify-between mb-2">
-                    <h1 className="text-xl font-semibold text-gray-900">
-                        Owner Dashboard
-                    </h1>
-                </div>
-                <p className="text-sm text-gray-600">
-                    Store overview and analytics
-                </p>
-            </div>
+            <Card>
+                <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <h1 className="text-xl font-semibold text-gray-900">Owner Dashboard</h1>
+                    </div>
+                    <p className="text-sm text-gray-600">Store overview and analytics</p>
+                </CardContent>
+            </Card>
 
             {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 mt-8">
-              <TabsList className="relative grid w-full grid-cols-2 bg-gray-100 p-1 rounded-lg">
+            <Tabs
+                value={activeTab}
+                onValueChange={(value) => {
+                    const newTab = value as "home" | "walkouts";
+                    setDirection(newTab === "home" ? "right" : "left");
+                    setActiveTab(newTab);
+                }}
+                className="space-y-6 mt-8"
+            >
+                <TabsList className="relative grid w-full grid-cols-2 bg-gray-100 p-1 rounded-lg">
                     <motion.div
                         layout
                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
@@ -540,7 +300,9 @@ export default function OwnerDashboard() {
 
                     <TabsTrigger
                         value="home"
-                        className="flex items-center justify-center gap-2 rounded-md transition-colors relative z-10 data-[state=active]:text-gray-900 data-[state=inactive]:text-gray-600"
+                        className={`flex items-center justify-center gap-2 rounded-md transition-colors relative z-10 ${
+                            activeTab === "home" ? "text-[#FF3F33]" : "text-gray-600"
+                        }`}
                     >
                         <Home className="h-4 w-4" />
                         <span>Home</span>
@@ -548,51 +310,195 @@ export default function OwnerDashboard() {
 
                     <TabsTrigger
                         value="walkouts"
-                        className="flex items-center justify-center gap-2 rounded-md transition-colors relative z-10 data-[state=active]:text-gray-900 data-[state=inactive]:text-gray-600"
+                        className={`flex items-center justify-center gap-2 rounded-md transition-colors relative z-10 ${
+                            activeTab === "walkouts" ? "text-[#FF3F33]" : "text-gray-600"
+                        }`}
                     >
                         <History className="h-4 w-4" />
                         <span>Walkouts</span>
                     </TabsTrigger>
                 </TabsList>
 
-                {/* Home Tab */}
-                <TabsContent value="home" className="space-y-6">
-                    {/* Summary Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <SummaryCard
-                            title="Employees"
-                            value={totalUsers}
-                            icon={Users}
-                            color="text-[#FF3F33]"
-                        />
-                        <SummaryCard
-                            title="Floors"
-                            value={totalFloors}
-                            icon={Building}
-                            color="text-green-500"
-                        />
-                        <SummaryCard
-                            title="KPIs"
-                            value={totalKPIs}
-                            icon={Target}
-                            color="text-purple-500"
-                        />
-                        <SummaryCard
-                            title="Leaves"
-                            value={leavesThisMonth}
-                            icon={Calendar}
-                            color="text-orange-500"
-                        />
-                    </div>
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={activeTab}
+                        initial={{ x: direction === "left" ? 300 : -300, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: direction === "left" ? -300 : 300, opacity: 0 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    >
+                        {/* Home Tab */}
+                        {activeTab === "home" && (
+                            <TabsContent value="home" className="space-y-6">
+                                {/* Summary Cards */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <SummaryCard title="Employees" value={totalUsers} icon={Users} color="text-[#FF3F33]" />
+                                    <SummaryCard title="Floors" value={totalFloors} icon={Building} color="text-green-500" />
+                                    <SummaryCard title="KPIs" value={totalKPIs} icon={Target} color="text-purple-500" />
+                                    <SummaryCard title="Walkout" value={totalWalkouts} icon={UserX} color="text-orange-500" />
+                                </div>
 
-                   
-                    
-                </TabsContent>
+                                {/* Analytics Graphs */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    {/* Sales Trend Graph */}
+                                    <Card>
+                                        <CardHeader>
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <CardTitle className="flex items-center gap-2">
+                                                        <BarChart3 className="h-5 w-5" />
+                                                        { selectedGraphType === "walkouts"
+                                                            ? "Walkout Trend"
+                                                            : selectedGraphType === "staff"
+                                                            ? "Staff Trend"
+                                                            : "KPI Trend"}
+                                                    </CardTitle>
+                                                    <CardDescription>
+                                                        {selectedGraphType === "walkouts"
+                                                            ? "Monthly walkout incidents"
+                                                        
+                                                            : selectedGraphType === "staff"
+                                                            ? "Monthly staff performance"
+                                                            : "Monthly KPI performance"}
+                                                    </CardDescription>
+                                                </div>
+                                                <select
+                                                    value={selectedGraphType}
+                                                    onChange={(e) =>
+                                                        setSelectedGraphType(
+                                                            e.target.value as "walkouts" | "staff" | "kpi"
+                                                        )
+                                                    }
+                                                    className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#FF3F33]"
+                                                >
+                                                   
+                                                    <option value="walkouts">Walkouts</option>
+                                                    <option value="staff">Staff</option>
+                                                    <option value="kpi">KPI</option>
+                                                </select>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="pl-0">
+                                            {graphLoading ? (
+                                                <div className="flex items-center justify-center h-[250px]">
+                                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF3F33]"></div>
+                                                </div>
+                                            ) : (
+                                                <ResponsiveContainer width="100%" height={250}>
+                                                    <LineChart data={graphData} margin={{ left: -20 }}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                                        <XAxis dataKey="period" style={{ fontSize: "12px" }} />
+                                                        <YAxis style={{ fontSize: "12px" }} />
+                                                        {/* <Tooltip
+                                                            formatter={(value: number) =>
+                                                                selectedGraphType === "staff"
+                                                                    ? formatCurrency(value)
+                                                                    : value
+                                                            }
+                                                            contentStyle={{ borderRadius: "8px" }}
+                                                        /> */}
+                                                        <Tooltip
+    formatter={(value: number) => formatNumberShort(value)}
+    contentStyle={{ borderRadius: "8px" }}
+/>
 
-                {/* Walkouts Tab */}
-                <TabsContent value="walkouts" className="space-y-6">
-                    <WalkOutManagement />
-                </TabsContent>
+                                                        <Line
+                                                            type="monotone"
+                                                            dataKey="value"
+                                                            stroke="#FF3F33"
+                                                            strokeWidth={2}
+                                                            dot={{ fill: "#FF3F33", r: 4 }}
+                                                        />
+                                                    </LineChart>
+                                                </ResponsiveContainer>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+                                {/* Floor Performance and Attendance Graphs */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                   
+                                    {/* Floor Performance */}
+<Card>
+  <CardHeader>
+    <CardTitle className="flex items-center gap-2">
+      <BarChart3 className="h-5 w-5" />
+      Floor Performance
+    </CardTitle>
+    <CardDescription>Sales by floor</CardDescription>
+  </CardHeader>
+  <CardContent className="pl-0">
+    <ResponsiveContainer width="100%" height={250}>
+      <BarChart data={floorPerformanceData} margin={{ left: -20 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+        <XAxis dataKey="floor" style={{ fontSize: '12px' }} />
+        <YAxis style={{ fontSize: '12px' }} />
+        {/*  OLD:  formatter={(value: number) => formatCurrency(value)}  */}
+        <Tooltip
+          formatter={(value: number) => formatNumberShort(value)}
+          contentStyle={{ borderRadius: '8px' }}
+        />
+        <Bar dataKey="sales" fill="#FF3F33" radius={[8, 8, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  </CardContent>
+  {/* <CardContent className="pl-0">
+  <ResponsiveContainer width="100%" height={250}>
+    <BarChart data={floorPerformanceData} margin={{ left: -20 }}>
+      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+      <XAxis dataKey="floor" style={{ fontSize: '12px' }} />
+      <YAxis
+        tickFormatter={(v) => formatNumberShort(v)} // short labels
+        style={{ fontSize: '12px' }}
+      />
+      <Tooltip
+        formatter={(value: number) => formatNumberShort(value)}
+        contentStyle={{ borderRadius: '8px' }}
+      />
+      <Bar dataKey="sales" fill="#FF3F33" radius={[8, 8, 0, 0]} />
+    </BarChart>
+  </ResponsiveContainer>
+</CardContent> */}
+</Card>
+
+
+                                    {/* Floor Attendance */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2">
+                                                <BarChart3 className="h-5 w-5" />
+                                                Floor Attendance
+                                            </CardTitle>
+                                            <CardDescription>Attendance percentage by floor</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="pl-0">
+                                            <ResponsiveContainer width="100%" height={250}>
+                                                <BarChart data={attendanceData} margin={{ left: -20 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                                    <XAxis dataKey="floor" style={{ fontSize: "12px" }} />
+                                                    <YAxis style={{ fontSize: "12px" }} />
+                                                    <Tooltip
+                                                        formatter={(value: number) => `${value}%`}
+                                                        contentStyle={{ borderRadius: "8px" }}
+                                                    />
+                                                    <Bar dataKey="attendance" fill="#FF3F33" radius={[8, 8, 0, 0]} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </TabsContent>
+                        )}
+
+                        {/* Walkouts Tab */}
+                        {activeTab === "walkouts" && (
+                            <TabsContent value="walkouts" className="space-y-6">
+                                <WalkOutManagementOwner/>
+                            </TabsContent>
+                        )}
+                    </motion.div>
+                </AnimatePresence>
             </Tabs>
         </div>
     );

@@ -67,16 +67,16 @@ export function SalesDashboard() {
                 setPersonalKPIs(res.data.personalKPIs);
                 setAttendanceData(res.data.attendanceData);
             } catch (err: any) {
-                  if (err.response?.status === 401) {
-                    localStorage.removeItem('accesstoken')
-                    localStorage.removeItem('refreshtoken')
-                    await logoutStaff()
-                    dispatch(clearUser())
-                    toast.error('Session Expired. Please login again')
-                  }
-                  toast.error("Internal servor error")
+                if (err.response?.status === 401) {
+                    localStorage.removeItem("accesstoken");
+                    localStorage.removeItem("refreshtoken");
+                    await logoutStaff();
+                    dispatch(clearUser());
+                    toast.error("Session Expired. Please login again");
                 }
-                setLoading(false);
+                toast.error("Internal servor error");
+            }
+            setLoading(false);
         };
 
         fetchDetails();
@@ -214,8 +214,7 @@ export function SalesDashboard() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
         >
-            
-              <motion.div
+            <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
@@ -230,7 +229,6 @@ export function SalesDashboard() {
                     Here's your performance overview
                 </p>
             </motion.div>
-
 
             <div className="grid grid-cols-2 gap-4">
                 <Card>

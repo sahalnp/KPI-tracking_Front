@@ -1,43 +1,81 @@
 
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
-import { Label } from '../ui/label'
-import { Avatar, AvatarFallback } from '../ui/avatar'
-import { Badge } from '../ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { 
-  Shield, 
+    Calendar,
   LogOut, 
+    Lock,
+    User,
   Edit, 
   Save, 
-  Eye, 
-  EyeOff,
-  X 
-} from 'lucide-react'
-import { toast } from 'sonner'
-import { logoutAccountant } from '@/lib/logoutApi'
-import { useDispatch } from 'react-redux'
-import { clearUser } from '@/features/UserSlice'
-import { axiosInstance } from '@/api/axios'
-import { LoadingSpinner } from '../ui/spinner'
+    X,
+    Phone,
+    Hash,
+    Building,
+    TrendingUp,
+    Settings,
+    Users,
+    BarChart3,
+} from "lucide-react";
+import { toast } from "sonner";
+import { logoutAccountant } from "@/lib/logoutApi";
+import { useDispatch } from "react-redux";
+import { clearUser } from "@/features/UserSlice";
+import { axiosInstance } from "@/api/axios";
+import { LoadingSpinner } from "@/components/ui/spinner";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { SalesReports } from "./AccountantSalesPage";
 
 export function AccountantAccount() {
-  const dispatch = useDispatch()
+    const dispatch = useDispatch();
 
-  const [isEditingProfile, setIsEditingProfile] = useState(false)
-  const [profileData, setProfileData] = useState<any>({})
-  const [editedData, setEditedData] = useState<any>({})
-  const [showNewPin, setShowNewPin] = useState(false)
-  const [showConfirmPin, setShowConfirmPin] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [pinChangeData, setPinChangeData] = useState({
+    const [activeTab, setActiveTab] = useState<"sales" | "account">("account");
+    const [direction, setDirection] = useState<"left" | "right">("right");
+    const [isEditing, setIsEditing] = useState(false);
+    const [profileData, setProfileData] = useState<any>({});
+    const [editData, setEditData] = useState<any>({
+        name: "",
+        mobile: "",
+    });
 
-    newPin: '',
-    confirmPin: ''
-  })
+    const [showPinChange, setShowPinChange] = useState(false);
+    const [newPin, setNewPin] = useState("");
+    const [confirmPin, setConfirmPin] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [isChangingPin, setIsChangingPin] = useState(false);
+
+    const handleTabChange = (tab: "sales" | "account") => {
+        if (tab === activeTab) return;
+        setDirection(tab === "account" ? "right" : "left");
+        setActiveTab(tab);
+    };
+
+    const slideVariants = {
+        enter: (direction: "left" | "right") => ({
+            x: direction === "right" ? 300 : -300,
+            opacity: 0,
+        }),
+        center: {
+            x: 0,
+            opacity: 1,
+        },
+        exit: (direction: "left" | "right") => ({
+            x: direction === "right" ? -300 : 300,
+            opacity: 0,
+        }),
+    };
 
   const handleLogout = async () => {
     try {
@@ -53,23 +91,23 @@ export function AccountantAccount() {
 
   const handleSaveProfile = async () => {
     try {
-      if (!editedData.name || !editedData.mobile) {
+            if (!editData.name || !editData.mobile) {
         toast.error('Name and mobile number are required')
         return
       }
 
-      if (editedData.mobile.length < 10) {
+            if (editData.mobile.length < 10) {
         toast.error('Please enter a valid mobile number')
         return
       }
 
       await axiosInstance.put('/accountant/update-profile', {
-        name: editedData.name,
-        mobile: editedData.mobile
+                name: editData.name,
+                mobile: editData.mobile
       })
       
-      setProfileData({ ...profileData, ...editedData })
-      setIsEditingProfile(false)
+            setProfileData({ ...profileData, ...editData })
+            setIsEditing(false)
       toast.success('Profile updated successfully')
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -85,39 +123,34 @@ export function AccountantAccount() {
   }
 
   const handleCancelEdit = () => {
-    setEditedData({
+        setEditData({
       name: profileData.name || '',
       mobile: profileData.mobile || ''
     })
-    setIsEditingProfile(false)
-  }
-
-  const handlePinChange = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if ( !pinChangeData.newPin || !pinChangeData.confirmPin) {
-      toast.error('All PIN fields are required')
-      return
+        setIsEditing(false)
     }
 
-    if (pinChangeData.newPin !== pinChangeData.confirmPin) {
+    const handlePinChange = async () => {
+        if (newPin !== confirmPin) {
       toast.error('New PIN and confirmation do not match')
       return
     }
     
-    if (pinChangeData.newPin.length !== 6 || !/^\d+$/.test(pinChangeData.newPin)) {
-      toast.error('PIN must be exactly 4 digits')
+        if (newPin.length !== 6 || !/^\d+$/.test(newPin)) {
+            toast.error('PIN must be exactly 6 digits')
       return
     }
 
     try {
+            setIsChangingPin(true)
       await axiosInstance.patch('/accountant/change-pin', {
-
-        newPin: pinChangeData.newPin
+                newPin: newPin
       })
       
       toast.success('PIN changed successfully')
-      setPinChangeData({  newPin: '', confirmPin: '' })
+            setNewPin('')
+            setConfirmPin('')
+            setShowPinChange(false)
     } catch (err: any) {
       if (err.response?.status === 401) {
         localStorage.removeItem('accesstoken')
@@ -128,6 +161,8 @@ export function AccountantAccount() {
       } else {
         toast.error(err.response?.data?.message || 'Failed to change PIN')
       }
+        } finally {
+            setIsChangingPin(false)
     }
   }
 
@@ -149,26 +184,33 @@ export function AccountantAccount() {
         const res = await axiosInstance.get('/accountant/getme')
         const userData = res.data.me
         setProfileData(userData)
-        setEditedData({
+                setEditData({
           name: userData.name || '',
           mobile: userData.mobile || ''
         })
       } catch (err: any) {
         if (err.response?.status === 401) {
-          localStorage.removeItem('accesstoken')
-          localStorage.removeItem('refreshtoken')
-          await logoutAccountant()
-          dispatch(clearUser())
-          toast.error('Session Expired. Please login again')
+                    const response: any = await logoutAccountant();
+                    if (response?.success) {
+                        localStorage.removeItem("accessToken");
+                        localStorage.removeItem("refreshToken");
+                        dispatch(clearUser());
+                        toast.error("Session Expired. Please login again");
+                    } else {
+                        console.error("Internal server error");
+                        toast.error("Something went wrong. Please try again.");
+                    }
         } else {
           toast.error(err.response?.data?.message || 'Failed to fetch profile')
         }
       }
       setLoading(false)
     }
+
     fetchProfile()
   }, [dispatch])
 
+  
   if (loading) {
     return <LoadingSpinner />
   }
@@ -188,212 +230,369 @@ export function AccountantAccount() {
         </div>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-2">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-        </TabsList>
+            {/* Tab Navigation */}
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                <button
+                    onClick={() => handleTabChange("sales")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                        activeTab === "sales"
+                            ? "bg-white text-[#FF3F33] shadow-sm"
+                            : "text-gray-600 hover:text-gray-900"
+                    }`}
+                >
+                    <TrendingUp className="h-4 w-4" />
+                    Sales Management
+                </button>
+                <button
+                    onClick={() => handleTabChange("account")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                        activeTab === "account"
+                            ? "bg-white text-[#FF3F33] shadow-sm"
+                            : "text-gray-600 hover:text-gray-900"
+                    }`}
+                >
+                    <Settings className="h-4 w-4" />
+                    Account Settings
+                </button>
+            </div>
 
-        {/* Profile Tab */}
-        <TabsContent value="profile">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Avatar + Basic Info Card */}
-            <Card className="relative">
-              <CardHeader className="text-center">
-                <Avatar className="h-20 w-20 mx-auto mb-4">
-                  <AvatarFallback className="bg-[#FF3F33] text-white text-2xl">
-                    {editedData.name?.split(' ').map(n => n[0]).join('') || profileData.name?.split(' ').map(n => n[0]).join('')}
+            {/* Animated Content */}
+            <AnimatePresence mode="wait" custom={direction}>
+                <motion.div
+                    key={activeTab}
+                    custom={direction}
+                    variants={slideVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.3 }}
+                    className="w-full"
+                >
+                    {/* Account Tab */}
+                    {activeTab === "account" && (
+                        <div className="space-y-6">
+                            {/* Profile Information */}
+                            <Card className="relative p-4">
+                                {/* Top Row: Avatar + Name + Role + Edit Button */}
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center space-x-4">
+                                        <Avatar className="h-16 w-16">
+                                            <AvatarFallback className="bg-[#FF3F33] text-white text-lg">
+                                                {editData.name
+                                                    ? editData.name
+                                                          .split(" ")
+                                                          .map((n: string) => n[0])
+                                                          .join("")
+                                                          .toUpperCase()
+                                                    : "U"}
                   </AvatarFallback>
                 </Avatar>
-                <CardTitle>{editedData.name || profileData.name}</CardTitle>
-                <CardDescription>{getRoleDisplayName(profileData.role)}</CardDescription>
-              </CardHeader>
-            </Card>
-
-            {/* Info Card */}
-            <Card className="lg:col-span-2 relative">
-              {/* Active/Inactive Badge (bottom right) */}
-              
-
-              <CardHeader className="flex flex-row justify-between items-start">
-                <div>
-                  <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>Account details</CardDescription>
+                                        <div className="flex items-center space-x-2">
+                                            <span className="font-medium text-lg">
+                                                {isEditing ? editData.name : profileData.name || "N/A"}
+                                            </span>
+                                            <Badge className="bg-blue-100 text-blue-800 capitalize">
+                                                {getRoleDisplayName(profileData.role) || "N/A"}
+                                            </Badge>
+                                        </div>
                 </div>
 
-                {/* Edit/Save/Cancel Buttons */}
-                <div className="flex gap-2">
-                  {!isEditingProfile ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-1"
-                      onClick={() => setIsEditingProfile(true)}
+                                    {/* Edit Button - Only show when not editing */}
+                                    {!isEditing && (
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 gap-1"
+                        onClick={() => setIsEditing(true)}
                     >
                       <Edit className="h-4 w-4" /> Edit
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center gap-1"
-                        onClick={handleCancelEdit}
-                      >
-                        <X className="h-4 w-4" /> Cancel
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="flex items-center gap-1 bg-[#FF3F33] hover:bg-[#E6362B]"
-                        onClick={handleSaveProfile}
-                      >
-                        <Save className="h-4 w-4" /> Save
-                      </Button>
-                    </>
+                      </motion.button>
+                                        </motion.div>
                   )}
                 </div>
-              </CardHeader>
 
-              <CardContent>
-                <div className="space-y-3">
+                                {/* User Details */}
+                                <motion.div
+                                    className="space-y-3"
+                                    initial={false}
+                                    animate={isEditing ? { scale: 1.01 } : { scale: 1 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    {/* ID - View Only (Always visible) */}
+                                    {profileData.uniqueId && (
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="flex items-center space-x-2"
+                                        >
+                                            <Hash className="h-4 w-4 text-gray-400" />
+                                            <Label className="text-sm text-gray-600">ID:</Label>
+                                            <span className="font-medium">{profileData.uniqueId}</span>
+                                        </motion.div>
+                                    )}
+
                   {/* Name - Editable */}
-                  {isEditingProfile ? (
-                    <div className="space-y-1">
-                      <Label className="text-sm font-medium">Name</Label>
+                                    <AnimatePresence mode="wait">
+                                        {isEditing ? (
+                                            <motion.div
+                                                key="name-edit"
+                                                initial={{ opacity: 0, x: -10 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 10 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="space-y-1"
+                                            >
+                                                <Label className="text-sm font-medium flex items-center space-x-2">
+                                                    <User className="h-4 w-4 text-gray-400" />
+                                                    <span>Name:</span>
+                                                </Label>
                       <Input
-                        value={editedData.name}
-                        onChange={(e) => setEditedData({ ...editedData, name: e.target.value })}
+                                                    value={editData.name}
+                                                    onChange={(e) =>
+                                                        setEditData({
+                                                            ...editData,
+                                                            name: e.target.value,
+                                                        })
+                                                    }
                         placeholder="Enter name"
                       />
-                    </div>
-                  ) : (
-                    <p className="text-sm">
-                      <span className="font-medium">Name:</span> {profileData.name}
-                    </p>
-                  )}
+                                            </motion.div>
+                                        ) : (
+                                            <motion.div
+                                                key="name-view"
+                                                initial={{ opacity: 0, x: -10 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 10 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="flex items-center space-x-2"
+                                            >
+                                                <User className="h-4 w-4 text-gray-400" />
+                                                <Label className="text-sm text-gray-600">Name:</Label>
+                                                <span className="font-medium">{profileData.name || "N/A"}</span>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
 
                   {/* Mobile - Editable */}
-                  {isEditingProfile ? (
-                    <div className="space-y-1">
-                      <Label className="text-sm font-medium">Mobile</Label>
+                                    <AnimatePresence mode="wait">
+                                        {isEditing ? (
+                                            <motion.div
+                                                key="mobile-edit"
+                                                initial={{ opacity: 0, x: -10 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 10 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="space-y-1"
+                                            >
+                                                <Label className="text-sm font-medium flex items-center space-x-2">
+                                                    <Phone className="h-4 w-4 text-gray-400" />
+                                                    <span>Mobile:</span>
+                                                </Label>
                       <Input
-                        value={editedData.mobile}
-                        onChange={(e) => setEditedData({ ...editedData, mobile: e.target.value })}
+                                                    value={editData.mobile}
+                                                    onChange={(e) =>
+                                                        setEditData({
+                                                            ...editData,
+                                                            mobile: e.target.value,
+                                                        })
+                                                    }
                         placeholder="Enter mobile number"
                         maxLength={10}
                       />
-                    </div>
-                  ) : (
-                    <p className="text-sm">
-                      <span className="font-medium">Mobile:</span> {profileData.mobile}
-                    </p>
-                  )}
+                                            </motion.div>
+                                        ) : (
+                                            <motion.div
+                                                key="mobile-view"
+                                                initial={{ opacity: 0, x: -10 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 10 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="flex items-center space-x-2"
+                                            >
+                                                <Phone className="h-4 w-4 text-gray-400" />
+                                                <Label className="text-sm text-gray-600">Mobile:</Label>
+                                                <span className="font-medium">{profileData.mobile || "N/A"}</span>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
 
-                  {/* Floor - View Only */}
+                                    {/* Floor - View Only (Always visible) */}
                   {profileData.floor?.name && (
-                    <p className="text-sm">
-                      <span className="font-medium">Floor:</span> {profileData.floor.name}
-                    </p>
-                  )}
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="flex items-center space-x-2"
+                                        >
+                                            <Building className="h-4 w-4 text-gray-400" />
+                                            <Label className="text-sm text-gray-600">Floor:</Label>
+                                            <span className="font-medium">{profileData.floor.name}</span>
+                                        </motion.div>
+                                    )}
 
-                  {/* Role - View Only */}
-                  <p className="text-sm">
-                    <span className="font-medium">Role:</span> {profileData.role}
-                  </p>
+                                    {/* Created At - View Only - Hide when editing */}
+                                    {!isEditing && profileData.created_at && (
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="flex items-center space-x-2"
+                                        >
+                                            <Calendar className="h-4 w-4 text-gray-400" />
+                                            <Label className="text-sm text-gray-600">Joined At:</Label>
+                                            <span className="font-medium">
+                                                {new Date(profileData.created_at).toLocaleDateString()}
+                                            </span>
+                                        </motion.div>
+                                    )}
+                                </motion.div>
 
-                 
-                </div>
-              </CardContent>
+                                {/* Save/Cancel Buttons - Bottom of Card */}
+                                <AnimatePresence>
+                                    {isEditing && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="flex gap-2 mt-6 pt-4 border-t"
+                                        >
+                                            <motion.button
+                                                whileTap={{ scale: 0.95 }}
+                                                className="flex-1 flex items-center justify-center gap-2 inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+                                                onClick={handleCancelEdit}
+                                            >
+                                                <X className="h-4 w-4" /> Cancel
+                                            </motion.button>
+
+                                            <motion.button
+                                                whileTap={{ scale: 0.95 }}
+                                                className="flex-1 flex items-center justify-center gap-2 inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-[#FF3F33] hover:bg-[#E6362B] text-primary-foreground h-10 px-4 py-2"
+                                                onClick={handleSaveProfile}
+                                            >
+                                                <Save className="h-4 w-4" /> Save Changes
+                                            </motion.button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
             </Card>
-          </div>
-        </TabsContent>
 
-        {/* Security Tab */}
-        <TabsContent value="security">
+                            {/* Change PIN */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Shield className="h-5 w-5 text-[#FF3F33]" />
-                <span>Change PIN</span>
+                                        <Lock className="h-5 w-5 text-[#FF3F33]" />
+                                        <span>Security</span>
               </CardTitle>
-              <CardDescription>Update your login PIN for security</CardDescription>
+                                    <CardDescription>Manage your account security settings</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handlePinChange} className="space-y-4">
+                                    {!showPinChange ? (
+                                        <motion.button
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => setShowPinChange(true)}
+                                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-[#FF3F33] hover:bg-[#E6362B] text-primary-foreground h-10 px-4 py-2"
+                                        >
+                                            Change PIN
+                                        </motion.button>
+                                    ) : (
+                                        <AnimatePresence mode="wait">
+                                            <motion.div
+                                                key="pin-change-form"
+                                                initial={{ opacity: 0, y: 15 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -15 }}
+                                                transition={{ duration: 0.3 }}
+                                                className="space-y-4"
+                                            >
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="newPin">New PIN</Label>
-                    <div className="relative">
+                                                        <Label htmlFor="new-pin">New PIN</Label>
                       <Input
-                        id="newPin"
-                        type={showNewPin ? 'text' : 'password'}
-                        value={pinChangeData.newPin}
+                                                            id="new-pin"
+                                                            type="password"
+                                                            value={newPin}
                         onChange={(e) =>
-                          setPinChangeData({ ...pinChangeData, newPin: e.target.value.replace(/\D/g, '') })
+                                                                setNewPin(e.target.value.replace(/\D/g, '').slice(0, 6))
                         }
+                                                            placeholder="Enter 6-digit PIN"
                         maxLength={6}
-                        placeholder="Enter new PIN"
-                        required
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                        onClick={() => setShowNewPin(!showNewPin)}
-                      >
-                        {showNewPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
+                                                        />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPin">Confirm New PIN</Label>
-                    <div className="relative">
+                                                        <Label htmlFor="confirm-pin">Confirm New PIN</Label>
                       <Input
-                        id="confirmPin"
-                        type={showConfirmPin ? 'text' : 'password'}
-                        value={pinChangeData.confirmPin}
+                                                            id="confirm-pin"
+                                                            type="password"
+                                                            value={confirmPin}
                         onChange={(e) =>
-                          setPinChangeData({ ...pinChangeData, confirmPin: e.target.value.replace(/\D/g, '') })
+                                                                setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 6))
                         }
+                                                            placeholder="Confirm 6-digit PIN"
                         maxLength={6}
-                        placeholder="Confirm new PIN"
-                        required
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                        onClick={() => setShowConfirmPin(!showConfirmPin)}
-                      >
-                        {showConfirmPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
+                                                        />
                   </div>
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="bg-[#FF3F33] hover:bg-[#E6362B] w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={ !pinChangeData.newPin || !pinChangeData.confirmPin}
-                >
-                  Change PIN
-                </Button>
-              </form>
+                                                <div className="flex space-x-2">
+                                                    <motion.button
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={handlePinChange}
+                                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-[#FF3F33] hover:bg-[#E6362B] text-primary-foreground h-10 px-4 py-2"
+                                                        disabled={isChangingPin}
+                                                    >
+                                                        {isChangingPin ? "Changing PIN..." : "Update PIN"}
+                                                    </motion.button>
+
+                <motion.button
+                                                        whileTap={{ scale: 0.95 }}
+                                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+                                                        onClick={() => {
+                                                            setShowPinChange(false);
+                                                            setNewPin("");
+                                                            setConfirmPin("");
+                                                        }}
+                                                        disabled={isChangingPin}
+                                                    >
+                                                        Cancel
+                </motion.button>
+                                                </div>
+                                            </motion.div>
+                                        </AnimatePresence>
+                                    )}
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
 
-      <Button
+                        
+                            {/* Account Actions */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Account Actions</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+      <motion.button
+        whileTap={{ scale: 0.95 }}
         type="button"
         onClick={handleLogout}
-        className="w-full flex items-center justify-center gap-2 bg-[#FF3F33] hover:bg-[#E6362B] active:scale-95 text-white font-medium rounded-lg px-4 py-2 shadow-md hover:shadow-lg transition-transform duration-200"
+                                        className="w-full flex items-center justify-center gap-2 inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-[#FF3F33] hover:bg-[#E6362B] text-white font-medium h-10 px-4 py-2"
       >
         <LogOut className="h-4 w-4" /> Sign Out
-      </Button>
+      </motion.button>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* Sales Tab */}
+                    {activeTab === "sales" && <SalesReports />}
+                </motion.div>
+            </AnimatePresence>
     </motion.div>
   )
 }

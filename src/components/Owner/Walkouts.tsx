@@ -5,8 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
+
 import { pushActivity } from "@/lib/setRecentActivity";
 import {
     UserX,
@@ -31,7 +30,7 @@ import { axiosInstance } from "@/api/axios";
 import { useDispatch } from "react-redux";
 import { clearUser } from "@/features/UserSlice";
 import { toast } from "sonner";
-import { logoutSupervisor } from "@/lib/logoutApi";
+import { logoutOwner } from "@/lib/logoutApi";
 import { LoadingSpinner } from "../ui/spinner";
 import { Navigate, useNavigate } from "react-router-dom";
 
@@ -83,77 +82,9 @@ function formatTimeAgo(dateString: any) {
     return "just now";
 }
 
-export const exportToExcel = async (type: "week" | "month", dispatch: any) => {
-    try {
-        // 1️⃣ Fetch JSON data from backend
-        const res = await axiosInstance.get("/supervisor/export-excel", {
-            params: { type },
-        });
-
-        const walkoutData = res.data.walkoutData;
-        if (!walkoutData || walkoutData.length === 0) {
-            toast.error("No data available to export");
-            return;
-        }
-
-        // 2️⃣ Format nested data for Excel
-        const formatted = walkoutData.map((item: any) => ({
-            ID: item.id,
-            Description: item.description,
-            Priority: item.priority,
-            "Item Name": item.itemName?.name || "",
-            Type: item.type?.name || "",
-            Staff: item.staff?.name || "",
-            "Submitted By": item.submittedBy?.name || "",
-            "Created At": new Date(item.created_at).toLocaleString(),
-        }));
-
-        // 3️⃣ Create worksheet & workbook
-        const ws = XLSX.utils.json_to_sheet(formatted);
-
-        // Optional: set column widths
-        ws["!cols"] = [
-            { wch: 5 }, // ID
-            { wch: 30 }, // Description
-            { wch: 12 }, // Priority
-            { wch: 20 }, // Item Name
-            { wch: 15 }, // Type
-            { wch: 20 }, // Staff
-            { wch: 20 }, // Submitted By
-            { wch: 25 }, // Created At
-        ];
-
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Walkouts");
-
-        // 4️⃣ Export as .xlsx
-        const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-        const blob = new Blob([excelBuffer], {
-            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        });
-
-        saveAs(
-            blob,
-            `walkouts_${type}_${new Date().toISOString().split("T")[0]}.xlsx`
-        );
-
-        toast.success(`Exported ${type} walkouts successfully`);
-    } catch (error: any) {
-        if (error.response?.status === 401) {
-            localStorage.removeItem("accesstoken");
-            localStorage.removeItem("refreshtoken");
-            await logoutSupervisor();
-            dispatch(clearUser());
-            toast.error("Session expired");
-        } else {
-            console.error("Export error:", error);
-            toast.error(error.response?.data?.message || "Export failed");
-        }
-    }
-};
 
 /* ---------- component ---------- */
-export function WalkOutManagement() {
+export function WalkOutManagementOwner() {
     /* ---- existing state ---- */
     const [entries, setEntries] = useState<any[]>([]);
     const [weekCount, setWeekCount] = useState(0);
@@ -165,7 +96,7 @@ export function WalkOutManagement() {
     const [editingEntry, setEditingEntry] = useState<any>(null);
     const [selectedPriority, setSelectedPriority] = useState("");
     const [query, setQuery] = useState("");
-    const [staffList, setStaffList] = useState<any[]>([]);
+
     const [filteredStaff, setFilteredStaff] = useState<any[]>([]);
     const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -213,7 +144,7 @@ export function WalkOutManagement() {
         setItemLoading(true);
         try {
             const { data } = await axiosInstance.get(
-                "/supervisor/getItemName",
+                "/owner/getItemName",
                 { params: { query: q } }
             );
             setFilteredItems(data.items ?? []);
@@ -232,7 +163,7 @@ export function WalkOutManagement() {
         setTypeLoading(true);
         try {
             const { data } = await axiosInstance.get(
-                "/supervisor/getItemType",
+                "/owner/getItemType",
                 { params: { query: q } }
             );
             setFilteredTypes(data.types ?? []);
@@ -243,12 +174,36 @@ export function WalkOutManagement() {
         }
     }, 400);
 
+    const fetchStaff = debounce(async (q: string) => {
+        if (!q.trim()) {
+            setFilteredStaff([]);
+            return;
+        }
+        setItemLoading(true); // Reuse itemLoading for staff search
+        try {
+            const { data } = await axiosInstance.get(
+                "/owner/searchStaff",
+                { params: { query: q } }
+            );
+            console.log(data,"+5646+46484484");
+            
+            setFilteredStaff(data.staffs ?? []);
+        } catch {
+            setFilteredStaff([]);
+        } finally {
+            setItemLoading(false);
+        }
+    }, 400);
+
     useEffect(() => {
         fetchItems(itemQuery);
     }, [itemQuery]);
     useEffect(() => {
         fetchTypes(typeQuery);
     }, [typeQuery]);
+    useEffect(() => {
+        fetchStaff(query);
+    }, [query]);
 
     /* ---------- outside click ---------- */
     useEffect(() => {
@@ -280,24 +235,26 @@ export function WalkOutManagement() {
         const fetchWalkouts = async () => {
             setLoading(true);
             try {
-                const res = await axiosInstance.get("/supervisor/getWalkouts");
+                const res = await axiosInstance.get("/owner/getWalkouts");
+                
                 const data = res.data.walkouts;
                 setEntries(data.walkouts);
                 setWeekCount(data.weekWalkoutCount || 0);
                 setPriorityCount(data.priorityCount || 0);
                 setTodayCount(data.todayCount || 0);
-                setStaffList(data.staffs);
+
                 console.log("Staff list loaded:", data.staffs);
-            } catch (error: any) {
-                if (error.response?.status === 401) {
-                    localStorage.removeItem("accesstoken");
-                    localStorage.removeItem("refreshtoken");
-                    await logoutSupervisor();
-                    dispatch(clearUser());
-                    toast.error("Session Expired. Please login again");
-                } else {
-                    toast.error("Internal server error");
-                }
+            } catch (err: any) {
+               if (err.response?.status === 401) {
+                                   const response:any = await logoutOwner();
+                                   if (response.success) {
+                                       localStorage.removeItem("accessToken");
+                                       localStorage.removeItem("refreshToken");
+                                       dispatch(clearUser());
+                                   } else {
+                                       console.error("Logout failed on backend");
+                                   }
+                               }
             }
             setLoading(false);
         };
@@ -305,24 +262,7 @@ export function WalkOutManagement() {
     }, []);
 
     /* ---------- staff filter ---------- */
-    useEffect(() => {
-        console.log("Staff filter - query:", query, "staffList:", staffList.length, "selectedStaff:", selectedStaff);
-        if (selectedStaff) {
-            setFilteredStaff([]);
-            return;
-        }
-        if (!query.trim()) {
-            // Show all staff when no query
-            setFilteredStaff(staffList);
-            console.log("Showing all staff:", staffList);
-            return;
-        }
-        const filtered = staffList.filter((s) =>
-            s.name.toLowerCase().includes(query.toLowerCase())
-        );
-        setFilteredStaff(filtered);
-        console.log("Filtered staff:", filtered);
-    }, [query, staffList, selectedStaff]);
+    // Removed frontend filtering - now using backend search via fetchStaff
 
     /* ---------- add / edit / delete ---------- */
     const addWalkout = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -342,7 +282,7 @@ export function WalkOutManagement() {
 
         try {
             const { data } = await axiosInstance.post(
-                "/supervisor/addWalkout",
+                "/owner/addWalkout",
                 {
                     itemId: selectedItem?.id || null,
                     itemName: finalItemName,
@@ -380,7 +320,7 @@ export function WalkOutManagement() {
             }
         } catch (err: any) {
             if (err.response?.status === 401) {
-                const response: any = await logoutSupervisor();
+                const response: any = await logoutOwner();
                 if (response?.success) {
                     localStorage.removeItem("accessToken");
                     localStorage.removeItem("refreshToken");
@@ -427,7 +367,7 @@ export function WalkOutManagement() {
         const fd = new FormData(e.currentTarget);
         try {
             const { data } = await axiosInstance.put(
-                `/supervisor/editWalkout/${editingEntry.id}`,
+                `/owner/editWalkout/${editingEntry.id}`,
                 {
                     itemId: selectedItem.id,
                     itemName: selectedItem.name,
@@ -466,7 +406,7 @@ export function WalkOutManagement() {
             }
         } catch (err: any) {
             if (err.response?.status === 401) {
-                const response: any = await logoutSupervisor();
+                const response: any = await logoutOwner();
                 if (response?.success) {
                     localStorage.removeItem("accessToken");
                     localStorage.removeItem("refreshToken");
@@ -488,7 +428,7 @@ export function WalkOutManagement() {
         if (!deletingId) return;
         try {
             const deleted = entries.find((e) => e.id === deletingId);
-            await axiosInstance.delete(`/supervisor/dltWalkt/${deletingId}`);
+            await axiosInstance.delete(`/owner/dltWalkt/${deletingId}`);
 
             setEntries((prev) => prev.filter((e) => e.id !== deletingId));
             setTodayCount((prev) => Math.max(0, prev - 1));
@@ -505,7 +445,7 @@ export function WalkOutManagement() {
             toast.success("Walk-out deleted");
         } catch (err: any) {
             if (err.response?.status === 401) {
-                const response: any = await logoutSupervisor();
+                const response: any = await logoutOwner();
                 if (response?.success) {
                     localStorage.removeItem("accessToken");
                     localStorage.removeItem("refreshToken");
@@ -563,38 +503,7 @@ export function WalkOutManagement() {
                 </div>
 
 
-                {/* Export buttons - visible in both views */}
-                {entries.length > 0 && (
-                    <div className="flex gap-2">
-                        <motion.button
-                            whileTap={{ scale: 0.95 }}
-                        >
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1 hover:bg-green-50 hover:text-green-700 hover:border-green-300"
-                                onClick={() => exportToExcel("week", dispatch)}
-                            >
-                                <Download className="h-4 w-4 mr-2" /> Export This
-                                Week
-                            </Button>
-                        </motion.button>
-                        <motion.button
-                            whileTap={{ scale: 0.95 }}
-                        >
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
-                                onClick={() => exportToExcel("month", dispatch)}
-                            >
-                                <Download className="h-4 w-4 mr-2" /> Export This
-                                Month
-                            </Button>
-                        </motion.button>
-                    </div>
-                )}
-
+               
                 {entries.length === 0 ? (
                         <Card className="bg-white mt-4 p-8 rounded-xl shadow-sm">
                             <div className="flex flex-col items-center">
@@ -643,13 +552,13 @@ export function WalkOutManagement() {
                                     <div className="flex items-center gap-4 text-sm text-gray-600">
                                         <div className="flex items-center gap-2">
                                             <Calendar size={14} />
-                                            <span>
+                                            {/* <span>
                                                 {new Date(
                                                     entry.created_at
                                                 ).toLocaleDateString()}
-                                            </span>
+                                            </span> */}
 
-                                            <Clock size={14} />
+                                            {/* <Clock size={14} /> */}
                                             <span>
                                                 {formatTimeAgo(
                                                     entry.created_at
@@ -966,6 +875,11 @@ export function WalkOutManagement() {
                                             className="pl-9"
                                             required
                                         />
+                                        {itemLoading && (
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                            </div>
+                                        )}
                                     </div>
                                     {filteredStaff.length > 0 &&
                                         !selectedStaff &&
@@ -987,13 +901,10 @@ export function WalkOutManagement() {
                                                             );
                                                         }}
                                                         className="w-full flex justify-between items-center px-3 py-2 hover:bg-gray-100 transition-colors"
-                                                    >
-                                                        <span className="font-medium">
-                                                            {staff.name}
-                                                        </span>
-                                                        <span className="text-xs text-gray-500">
-                                                            {staff.section}
-                                                        </span>
+                                                    ><span className="font-medium">{staff.name}</span>
+<span className="text-xs text-gray-500">
+  ID: {staff.uniqueId} • Floor: {staff.floor?.name}
+</span>
                                                     </button>
                                                 ))}
                                             </div>
@@ -1002,12 +913,7 @@ export function WalkOutManagement() {
                                         <div className="mt-2 flex items-center justify-between px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
                                             <div className="flex items-center gap-2">
                                                 <CheckCircle className="h-4 w-4 text-green-600" />
-                                                <span className="text-sm text-green-700">
-                                                    <strong>
-                                                        {selectedStaff.name}
-                                                    </strong>{" "}
-                                                    from {selectedStaff.section}
-                                                </span>
+                                                <strong>{selectedStaff.name}</strong> (ID: {selectedStaff.uniqueId}, Floor: {selectedStaff.floor?.name})
                                             </div>
                                             <button
                                                 type="button"
@@ -1326,6 +1232,11 @@ export function WalkOutManagement() {
                                             className="pl-9"
                                             required
                                         />
+                                        {itemLoading && (
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                            </div>
+                                        )}
                                     </div>
                                     {filteredStaff.length > 0 &&
                                         !selectedStaff &&
@@ -1348,12 +1259,11 @@ export function WalkOutManagement() {
                                                         }}
                                                         className="w-full flex justify-between items-center px-3 py-2 hover:bg-gray-100 transition-colors"
                                                     >
-                                                        <span className="font-medium">
-                                                            {staff.name}
-                                                        </span>
-                                                        <span className="text-xs text-gray-500">
-                                                            {staff.section}
-                                                        </span>
+                                                       <span className="font-medium">{staff.name}</span>
+<span className="text-xs text-gray-500">
+  ID: {staff.uniqueId} • Floor: {staff.floor?.name}
+</span>
+                      
                                                     </button>
                                                 ))}
                                             </div>
@@ -1363,10 +1273,7 @@ export function WalkOutManagement() {
                                             <div className="flex items-center gap-2">
                                                 <CheckCircle className="h-4 w-4 text-green-600" />
                                                 <span className="text-sm text-green-700">
-                                                    <strong>
-                                                        {selectedStaff.name}
-                                                    </strong>{" "}
-                                                    from {selectedStaff.section}
+                                                     <strong>{selectedStaff.name}</strong> (ID: {selectedStaff.uniqueId}, Floor: {selectedStaff.floor?.name})
                                                 </span>
                                             </div>
                                             <button
@@ -1382,65 +1289,7 @@ export function WalkOutManagement() {
                                     )}
                                 </div>
 
-                                <div className="flex flex-col gap-1">
-                                    <Label>Priority Level</Label>
-                                    <RadioGroup
-                                        value={selectedPriority}
-                                        onValueChange={setSelectedPriority}
-                                        className="flex gap-6 mt-1"
-                                    >
-                                        <div className="flex items-center space-x-2">
-                                            <RadioGroupItem
-                                                value="Low"
-                                                id="low"
-                                            />
-                                            <Label htmlFor="low">Low</Label>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <RadioGroupItem
-                                                value="Medium"
-                                                id="medium"
-                                            />
-                                            <Label htmlFor="medium">
-                                                Medium
-                                            </Label>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <RadioGroupItem
-                                                value="High"
-                                                id="high"
-                                            />
-                                            <Label htmlFor="high">High</Label>
-                                        </div>
-                                    </RadioGroup>
-                                </div>
-
-                                {/* Reason */}
-                                <div className="flex flex-col gap-1">
-                                    <Label htmlFor="edit-description">
-                                        Desciption for Walk-Out
-                                    </Label>
-                                    <div className="relative flex items-start">
-                                        <FileText
-                                            className="absolute left-3 top-3 text-gray-400"
-                                            size={18}
-                                        />
-                                        <Textarea
-                                            id="edit-description"
-                                            name="description"
-                                            placeholder="Describe the description for the walk-out..."
-                                            defaultValue={
-                                                editingEntry.description
-                                            }
-                                            className="min-h-[100px] pl-9"
-                                            required
-                                        />
-                                    </div>
-                                    <span className="text-xs text-gray-500">
-                                        Provide detailed information about why
-                                        the customer left
-                                    </span>
-                                </div>
+                               
 
                                 {/* Buttons */}
                                 <div className="flex gap-3 pt-2">

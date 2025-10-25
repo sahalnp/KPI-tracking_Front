@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { motion,AnimatePresence } from "framer-motion";
 import { UserAuth } from "@/hooks/useAuth";
-import { Home, ClipboardCheck, UserX, User, Users } from "lucide-react";
+import { Home, ClipboardCheck, FileText, Settings } from "lucide-react";
 
 interface BottomNavProps {
   userRole: string;
@@ -12,13 +12,12 @@ interface BottomNavProps {
 }
 
 function BottomNav({ userRole, currentPage, onNavigate }: BottomNavProps) {
-  const supervisorTabs = [
-    { id: "dashboard", label: "Dashboard", icon: Home },
-    { id: "scoring", label: "Scoring", icon: ClipboardCheck },
-    { id: "walkouts", label: "Walk-Outs", icon: UserX },
-    { id: "Users", label: "Users", icon: Users },
-    { id: "account", label: "Account", icon: User },
-  ];
+    const supervisorTabs = [
+        { id: "dashboard", label: "Home", icon: Home },
+        { id: "scoring", label: "Scoring", icon: ClipboardCheck },
+        { id: "reports", label: "Reports", icon: FileText },
+        { id: "settings", label: "Settings", icon: Settings },
+    ];
 
   const tabs = userRole === "FloorSupervisor" ? supervisorTabs : [];
 

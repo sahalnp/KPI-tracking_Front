@@ -10,7 +10,8 @@ import {
     Users,
     Upload,
     TrendingUp,
-    FileText
+    FileText,
+    Settings
 } from "lucide-react";
 
 interface BottomNavProps {
@@ -23,9 +24,8 @@ function BottomNav({ userRole, currentPage, onNavigate }: BottomNavProps) {
     const tabs = [
         { id: "dashboard", label: "Dashboard", icon: Home },
         { id: "uploads", label: "Uploads", icon: Upload },
-        { id: "sales", label: "Sales", icon: FileText },
         { id: "attendence", label: "Attendence", icon: ClipboardCheck },
-        { id: "account", label: "Account", icon: User },
+        { id: "account", label: "Settings", icon: Settings },
     ];
 
     return (
