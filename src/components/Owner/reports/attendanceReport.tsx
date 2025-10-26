@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
     Card,
     CardContent,
@@ -32,6 +32,7 @@ import {
     UserMinus,
     CheckCircle,
     X,
+    User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { saveAs } from "file-saver";
@@ -40,6 +41,51 @@ import { logoutOwner } from "@/lib/logoutApi";
 import { clearUser } from "@/features/UserSlice";
 import { useDispatch } from "react-redux";
 import { LoadingSpinner } from "@/components/ui/spinner";
+
+// Summary Card Component (matching Owner Dashboard style)
+const SummaryCard: React.FC<{
+    title: string;
+    value: number | string;
+    icon: React.ComponentType<{ className?: string }>;
+    color: string;
+    subtitle?: string;
+}> = ({ title, value, icon: Icon, color, subtitle }) => (
+    <Card className="h-full">
+        <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+                <div>
+                    <p className="text-sm text-gray-600">{title}</p>
+                    <p className="text-xl font-bold">{typeof value === "number" ? formatNumberShort(value) : value}</p>
+                    {subtitle && (
+                        <p className="text-xs text-gray-600">{subtitle}</p>
+                    )}
+                </div>
+                <Icon className={`h-6 w-6 ${color}`} />
+            </div>
+        </CardContent>
+    </Card>
+);
+
+// Format big numbers (500000 → 500K, 1200000 → 1.2M)
+const formatNumberShort = (num: number) => {
+    if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+    if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+    return num.toString();
+};
+
+// Get number of days in a specific month and year
+const getDaysInMonth = (month: number, year: number) => {
+    return new Date(year, month, 0).getDate();
+};
+
+// Calculate attendance percentage based on actual month days
+const calculateAttendancePercentage = (fullDays: string | number, halfDays: string | number, month: number, year: number) => {
+    const fullDaysNum = Number(fullDays) || 0;
+    const halfDaysNum = Number(halfDays) || 0;
+    const totalDays = getDaysInMonth(month, year);
+    const percentage = ((fullDaysNum + 0.5 * halfDaysNum) / totalDays) * 100;
+    return Math.min(percentage, 100); // Cap at 100%
+};
 
 // Attendance Data Interface
 interface AttendanceData {
@@ -70,7 +116,7 @@ interface AttendanceSummary {
 }
 
 export default function AttendanceReportPage() {
-    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+    const [selectedMonth, setSelectedMonth] = useState<string>(new Date().getMonth().toString());
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [isMonthYearModalOpen, setIsMonthYearModalOpen] = useState(false);
     const [attendance, setAttendance] = useState<AttendanceData[]>([]);
@@ -86,6 +132,7 @@ export default function AttendanceReportPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [pdfLoading, setPdfLoading] = useState(false);
     const [excelLoading, setExcelLoading] = useState(false);
+    const [allMonthsData, setAllMonthsData] = useState<any>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
@@ -114,27 +161,54 @@ export default function AttendanceReportPage() {
             setLoading(true);
             setError(null);
             try {
-                const res = await axiosInstance.get("/owner/attendanceReport", {
-                    params: { month: selectedMonth + 1, year: selectedYear },
-                });
-                if (res.data?.success) {
-                    setAttendance(res.data.attendance || []);
-                    setSummary(
-                        res.data.summary || {
+                // If "all" is selected, fetch all months data
+                if (selectedMonth === 'all') {
+                    const res = await axiosInstance.get("/owner/all-months-attendanceReport", {
+                        params: { year: selectedYear },
+                    });
+                    
+                    if (res.data?.success) {
+                        setAllMonthsData(res.data.data || {});
+                        setAttendance([]); // Clear single month data
+                        setSummary({
                             totalStaff: 0,
                             totalAttendance: 0,
                             totalFullDays: 0,
                             totalHalfDays: 0,
                             totalLeaves: 0,
-                        }
-                    );
+                        });
+                    } else {
+                        setError(res.data?.error || "Failed to fetch all months attendance data");
+                        toast.error(res.data?.error || "Failed to fetch all months attendance data");
+                    }
                 } else {
-                    setError(
-                        res.data?.error || "Failed to fetch attendance report"
-                    );
-                    toast.error(
-                        res.data?.error || "Failed to fetch attendance report"
-                    );
+                    // Fetch single month data
+                    const monthIndex = typeof selectedMonth === 'string' ? parseInt(selectedMonth) : selectedMonth;
+                    const res = await axiosInstance.get("/owner/attendanceReport", {
+                        params: { month: monthIndex + 1, year: selectedYear },
+                    });
+                    console.log(res.data,"87897897");
+                    
+                    if (res.data?.success) {
+                        setAttendance(res.data.attendance || []);
+                        setSummary(
+                            res.data.summary || {
+                                totalStaff: 0,
+                                totalAttendance: 0,
+                                totalFullDays: 0,
+                                totalHalfDays: 0,
+                                totalLeaves: 0,
+                            }
+                        );
+                        setAllMonthsData(null); // Clear all months data
+                    } else {
+                        setError(
+                            res.data?.error || "Failed to fetch attendance report"
+                        );
+                        toast.error(
+                            res.data?.error || "Failed to fetch attendance report"
+                        );
+                    }
                 }
             } catch (err: any) {
                 if (err.response?.status === 401) {
@@ -270,7 +344,7 @@ export default function AttendanceReportPage() {
                         Attendance Report
                     </h1>
                     <p className="text-sm text-gray-600">
-                        {months[selectedMonth]} {selectedYear}
+                        {selectedMonth === 'all' ? 'All Months' : months[parseInt(selectedMonth)]} {selectedYear}
                     </p>
                 </div>
 
@@ -288,7 +362,7 @@ export default function AttendanceReportPage() {
                         onClick={() => setModalOpen(true)}
                         disabled={!hasAttendance}
                     >
-                        <Download className="h-6 w-6 text-red-500" />
+                        <Download className="h-8 w-8 text-red-500" />
                     </Button>
                 </div>
             </motion.div>
@@ -318,83 +392,163 @@ export default function AttendanceReportPage() {
                         No Attendance Found
                     </h3>
                     <p className="text-muted-foreground text-center max-w-md">
-                        No attendance data available for {months[selectedMonth]}{" "}
+                        No attendance data available for {selectedMonth === 'all' ? 'All Months' : months[parseInt(selectedMonth)]}{" "}
                         {selectedYear}.
                     </p>
                 </motion.div>
             )}
 
-            {/* Summary Overview */}
-            {!loading && hasAttendance && (
+            {/* Month Selection */}
+            {!loading && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white"
+                    transition={{ delay: 0.1 }}
+                    className="bg-white rounded-lg shadow-sm p-4 mb-6"
                 >
-                    <div className="flex items-center justify-between mb-4">
-                        <div>
-                            <h2 className="text-2xl font-bold">
-                                Attendance Overview
-                            </h2>
-                            <p className="text-blue-100">
-                                {months[selectedMonth]} {selectedYear}
-                            </p>
-                        </div>
-                        <CalendarDays className="w-12 h-12 text-blue-200" />
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                        <div className="text-center">
-                            <div className="flex items-center justify-center mb-2">
-                                <Users className="w-8 h-8 text-blue-200" />
-                            </div>
-                            <p className="text-3xl font-bold">
-                                {summary.totalStaff}
-                            </p>
-                            <p className="text-sm text-blue-100">Total Staff</p>
-                        </div>
-
-                        <div className="text-center">
-                            <div className="flex items-center justify-center mb-2">
-                                <CheckCircle className="w-8 h-8 text-green-200" />
-                            </div>
-                            <p className="text-3xl font-bold">
-                                {summary.totalFullDays}
-                            </p>
-                            <p className="text-sm text-blue-100">Full Days</p>
-                        </div>
-
-                        <div className="text-center">
-                            <div className="flex items-center justify-center mb-2">
-                                <Clock className="w-8 h-8 text-yellow-200" />
-                            </div>
-                            <p className="text-3xl font-bold">
-                                {summary.totalHalfDays}
-                            </p>
-                            <p className="text-sm text-blue-100">Half Days</p>
-                        </div>
-
-                        <div className="text-center">
-                            <div className="flex items-center justify-center mb-2">
-                                <UserMinus className="w-8 h-8 text-red-200" />
-                            </div>
-                            <p className="text-3xl font-bold">
-                                {summary.totalLeaves}
-                            </p>
-                            <p className="text-sm text-blue-100">Leaves</p>
-                        </div>
+                    <div className="flex items-center gap-4">
+                        <label className="text-sm font-medium text-gray-700">Select Month:</label>
+                        <select
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                        >
+                            <option value="all">All Months</option>
+                            {months.map((month, index) => (
+                                <option key={month} value={index.toString()}>
+                                    {month}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 </motion.div>
             )}
 
+            {/* Summary Cards */}
+            {!loading && (hasAttendance || (selectedMonth === 'all' && allMonthsData)) && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {selectedMonth === 'all' && allMonthsData ? (
+                        // Show all months summary
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 }}
+                            >
+                                <SummaryCard 
+                                    title="Total Staff" 
+                                    value={Object.values(allMonthsData).reduce((sum: number, monthData: any) => sum + (monthData.summary?.totalStaff || 0), 0)} 
+                                    icon={User} 
+                                    color="text-[#FF3F33]" 
+                                />
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                            >
+                                <SummaryCard 
+                                    title="Full Days" 
+                                    value={Object.values(allMonthsData).reduce((sum: number, monthData: any) => sum + (monthData.summary?.totalFullDays || 0), 0)} 
+                                    icon={CheckCircle} 
+                                    color="text-green-500" 
+                                />
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 }}
+                            >
+                                <SummaryCard 
+                                    title="Half Days" 
+                                    value={Object.values(allMonthsData).reduce((sum: number, monthData: any) => sum + (monthData.summary?.totalHalfDays || 0), 0)} 
+                                    icon={Clock} 
+                                    color="text-yellow-500" 
+                                />
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.4 }}
+                            >
+                                <SummaryCard 
+                                    title="Total Leaves" 
+                                    value={Object.values(allMonthsData).reduce((sum: number, monthData: any) => sum + (monthData.summary?.totalLeaves || 0), 0)} 
+                                    icon={X} 
+                                    color="text-red-500" 
+                                />
+                            </motion.div>
+                        </>
+                    ) : (
+                        // Show single month summary
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 }}
+                            >
+                                <SummaryCard 
+                                    title="Total Staff" 
+                                    value={summary.totalStaff} 
+                                    icon={User} 
+                                    color="text-[#FF3F33]" 
+                                />
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                            >
+                                <SummaryCard 
+                                    title="Full Days" 
+                                    value={summary.totalFullDays} 
+                                    icon={CheckCircle} 
+                                    color="text-green-500" 
+                                />
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 }}
+                            >
+                                <SummaryCard 
+                                    title="Half Days" 
+                                    value={summary.totalHalfDays} 
+                                    icon={Clock} 
+                                    color="text-yellow-500" 
+                                />
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.4 }}
+                            >
+                                <SummaryCard 
+                                    title="Total Leaves" 
+                                    value={summary.totalLeaves} 
+                                    icon={X} 
+                                    color="text-red-500" 
+                                />
+                            </motion.div>
+                        </>
+                    )}
+                </div>
+            )}
+
             {/* Attendance Table */}
-            {!loading && hasAttendance && (
+            {!loading && (hasAttendance || (selectedMonth === 'all' && allMonthsData)) && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="bg-white rounded-lg shadow-sm overflow-hidden"
                 >
-                    <div className="px-6 py-4 border-b border-gray-200">
+                    <div className="px-4 py-3 border-b border-gray-200">
                         <h3 className="text-lg font-semibold text-gray-900">
                             Attendance Records
                         </h3>
@@ -404,43 +558,38 @@ export default function AttendanceReportPage() {
                     </div>
 
                     <div className="overflow-x-auto">
-                        <table className="w-full">
+                        <table className="w-full min-w-[400px]">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-20 border-r border-gray-200 shadow-sm">
                                         Staff
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Date
+                                    <th className="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Full
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Full Days
+                                    <th className="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Half
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Half Days
+                                    <th className="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Leave
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Leaves
+                                    <th className="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Total
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Total Days
-                                    </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Attendance %
+                                    <th className="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        %
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className="bg-white divide-y divide-gray-100">
                                 {attendance.map((record, index) => {
-                                    const attendancePercentage =
-                                        record.totalDays > 0
-                                            ? Math.round(
-                                                  ((record.fullDays +
-                                                      record.halfDays * 0.5) /
-                                                      record.totalDays) *
-                                                      100
-                                              )
-                                            : 0;
+                                    const monthIndex = typeof selectedMonth === 'string' ? parseInt(selectedMonth) : selectedMonth;
+                                    const attendancePercentage = calculateAttendancePercentage(
+                                        record.fullDays,
+                                        record.halfDays,
+                                        (monthIndex || 0) + 1, // Convert 0-based to 1-based month
+                                        selectedYear
+                                    );
 
                                     return (
                                         <motion.tr
@@ -450,119 +599,84 @@ export default function AttendanceReportPage() {
                                             transition={{ delay: index * 0.05 }}
                                             className="hover:bg-gray-50 transition-colors"
                                         >
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-2 py-2 whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-200 shadow-sm">
                                                 <div className="flex items-center">
-                                                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold mr-3">
-                                                        {record.staff?.name
-                                                            ? record.staff.name
-                                                                  .charAt(0)
-                                                                  .toUpperCase()
-                                                            : "?"}
-                                                    </div>
+                                                   
                                                     <div>
-                                                        <div className="text-sm font-medium text-gray-900">
+                                                        <div className="text-xs font-medium text-gray-900">
                                                             {record.staff
                                                                 ?.name ||
                                                                 "Unknown Staff"}
                                                         </div>
-                                                        <div className="text-sm text-gray-500">
-                                                            ID:{" "}
+                                                        <div className="text-xs text-gray-500">
                                                             {record.staff
                                                                 ?.uniqueId ||
                                                                 record.staffId}
                                                         </div>
-                                                        {record.staff
-                                                            ?.section && (
-                                                            <div className="text-xs text-gray-400">
-                                                                {
-                                                                    record.staff
-                                                                        .section
-                                                                }{" "}
-                                                                |{" "}
-                                                                {record.staff
-                                                                    .floor
-                                                                    ?.name ||
-                                                                    "No Floor"}
-                                                            </div>
-                                                        )}
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {new Date(
-                                                    record.date
-                                                ).toLocaleDateString("en-IN")}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <td className="px-1 py-2 whitespace-nowrap text-center">
                                                 <Badge
                                                     variant="outline"
-                                                    className="bg-green-50 text-green-700 border-green-200"
+                                                    className="bg-green-50 text-green-700 border-green-200 text-xs px-1 py-0"
                                                 >
                                                     {record.fullDays}
                                                 </Badge>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <td className="px-1 py-2 whitespace-nowrap text-center">
                                                 <Badge
                                                     variant="outline"
-                                                    className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                                                    className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs px-1 py-0"
                                                 >
                                                     {record.halfDays}
                                                 </Badge>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <td className="px-1 py-2 whitespace-nowrap text-center">
                                                 <Badge
                                                     variant="outline"
-                                                    className="bg-red-50 text-red-700 border-red-200"
+                                                    className="bg-red-50 text-red-700 border-red-200 text-xs px-1 py-0"
                                                 >
                                                     {record.leaveCount}
                                                 </Badge>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-900">
+                                            <td className="px-1 py-2 whitespace-nowrap text-center text-sm font-medium text-gray-900">
                                                 {record.totalDays}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <td className="px-1 py-2 whitespace-nowrap text-center">
                                                 <div className="flex items-center justify-center">
                                                     <div
-                                                        className={`w-16 h-2 rounded-full mr-2 ${
-                                                            attendancePercentage >=
-                                                            80
+                                                        className={`w-10 h-1.5 rounded-full mr-1 ${
+                                                            attendancePercentage >= 80
                                                                 ? "bg-green-200"
-                                                                : attendancePercentage >=
-                                                                  60
+                                                                : attendancePercentage >= 60
                                                                 ? "bg-yellow-200"
                                                                 : "bg-red-200"
                                                         }`}
                                                     >
                                                         <div
-                                                            className={`h-2 rounded-full ${
-                                                                attendancePercentage >=
-                                                                80
+                                                            className={`h-1.5 rounded-full ${
+                                                                attendancePercentage >= 80
                                                                     ? "bg-green-500"
-                                                                    : attendancePercentage >=
-                                                                      60
+                                                                    : attendancePercentage >= 60
                                                                     ? "bg-yellow-500"
                                                                     : "bg-red-500"
                                                             }`}
                                                             style={{
-                                                                width: `${Math.min(
-                                                                    attendancePercentage,
-                                                                    100
-                                                                )}%`,
+                                                                width: `${Math.min(attendancePercentage, 100)}%`,
                                                             }}
                                                         />
                                                     </div>
                                                     <span
-                                                        className={`text-sm font-medium ${
-                                                            attendancePercentage >=
-                                                            80
+                                                        className={`text-xs font-medium ${
+                                                            attendancePercentage >= 80
                                                                 ? "text-green-600"
-                                                                : attendancePercentage >=
-                                                                  60
+                                                                : attendancePercentage >= 60
                                                                 ? "text-yellow-600"
                                                                 : "text-red-600"
                                                         }`}
                                                     >
-                                                        {attendancePercentage}%
+                                                        {attendancePercentage.toFixed(0)}%
                                                     </span>
                                                 </div>
                                             </td>
@@ -571,6 +685,7 @@ export default function AttendanceReportPage() {
                                 })}
                             </tbody>
                         </table>
+
                     </div>
                 </motion.div>
             )}
@@ -597,12 +712,12 @@ export default function AttendanceReportPage() {
                                 <select
                                     value={selectedMonth}
                                     onChange={(e) =>
-                                        setSelectedMonth(Number(e.target.value))
+                                        setSelectedMonth(e.target.value)
                                     }
                                     className="w-full px-4 py-3 bg-gray-100 rounded-md border border-gray-300 appearance-none cursor-pointer text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                 >
                                     {months.map((month, index) => (
-                                        <option key={month} value={index}>
+                                        <option key={month} value={index.toString()}>
                                             {month.slice(0, 3)}
                                         </option>
                                     ))}
@@ -672,115 +787,114 @@ export default function AttendanceReportPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Export Modal */}
-            <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-                <DialogContent className="w-[95%] max-w-[24rem] rounded-2xl overflow-hidden">
-                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-semibold text-white">
-                                Export Attendance Report
-                            </h2>
-                            <button
-                                onClick={() => setModalOpen(false)}
-                                aria-label="Close modal"
-                                className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10 transition"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <p className="text-blue-100 text-sm mt-1">
-                            {months[selectedMonth]} {selectedYear} •{" "}
-                            {attendance.length} records
-                        </p>
-                    </div>
-
-                    <div className="px-6 py-6 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <button
-                                onClick={handleExportPDF}
-                                disabled={pdfLoading || !hasAttendance}
-                                className={`flex flex-col items-center gap-3 p-4 rounded-xl border transition-all duration-200 ${
-                                    pdfLoading || !hasAttendance
-                                        ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
-                                        : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200 active:scale-95"
-                                }`}
-                            >
-                                <div
-                                    className={`p-3 rounded-lg ${
-                                        pdfLoading
-                                            ? "bg-gray-200"
-                                            : "bg-red-100"
-                                    }`}
+            <AnimatePresence>
+                {modalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                        onClick={() => setModalOpen(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.95, y: 20 }}
+                            transition={{
+                                type: "spring",
+                                stiffness: 300,
+                                damping: 30,
+                            }}
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                                <h2 className="text-lg font-semibold text-gray-900">
+                                    Export Report
+                                </h2>
+                                <button
+                                    onClick={() => setModalOpen(false)}
+                                    aria-label="Close modal"
+                                    className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition"
                                 >
-                                    {pdfLoading ? (
-                                        <div className="w-6 h-6 flex items-center justify-center">
-                                            <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                        </div>
-                                    ) : (
-                                        <FileText className="w-6 h-6 text-red-600" />
-                                    )}
-                                </div>
-                                <div className="text-center">
-                                    <div className="font-semibold text-gray-900 text-sm">
-                                        {pdfLoading
-                                            ? "Preparing…"
-                                            : "PDF Report"}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                        Portable Document
-                                    </div>
-                                </div>
-                            </button>
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
 
-                            <button
-                                onClick={handleExportExcel}
-                                disabled={excelLoading || !hasAttendance}
-                                className={`flex flex-col items-center gap-3 p-4 rounded-xl border transition-all duration-200 ${
-                                    excelLoading || !hasAttendance
-                                        ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
-                                        : "bg-white border-gray-200 hover:bg-green-50 hover:border-green-200 active:scale-95"
-                                }`}
-                            >
-                                <div
-                                    className={`p-3 rounded-lg ${
-                                        excelLoading
-                                            ? "bg-gray-200"
-                                            : "bg-green-100"
-                                    }`}
+                            {/* Body */}
+                            <div className="px-6 py-5 space-y-4">
+                                <p className="text-sm text-gray-600">
+                                    Choose a format:
+                                </p>
+
+                                {/* ----------  PDF BUTTON  ---------- */}
+                                <button
+                                    onClick={handleExportPDF}
+                                    disabled={pdfLoading || !hasAttendance}
+                                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                                    ${pdfLoading || !hasAttendance
+                                        ? 'bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed'
+                                        : 'bg-white border-gray-200 hover:bg-gray-50 active:scale-95'}`}
                                 >
-                                    {excelLoading ? (
-                                        <div className="w-6 h-6 flex items-center justify-center">
-                                            <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                        </div>
-                                    ) : (
-                                        <Sheet className="w-6 h-6 text-green-600" />
-                                    )}
-                                </div>
-                                <div className="text-center">
-                                    <div className="font-semibold text-gray-900 text-sm">
-                                        {excelLoading
-                                            ? "Preparing…"
-                                            : "Excel Report"}
+                                    <div className={`p-2 rounded-lg ${pdfLoading ? 'bg-gray-200' : 'bg-red-100'}`}>
+                                        {pdfLoading ? (
+                                            <div className="w-5 h-5 flex items-center justify-center">
+                                                {/* tiny spinner */}
+                                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                            </div>
+                                        ) : (
+                                            <FileText className="w-5 h-5 text-red-600" />
+                                        )}
                                     </div>
-                                    <div className="text-xs text-gray-500">
-                                        Spreadsheet
-                                    </div>
-                                </div>
-                            </button>
-                        </div>
 
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                            <div className="flex items-center gap-2">
-                                <TrendingUp className="w-4 h-4 text-blue-600" />
-                                <p className="text-xs text-blue-700">
-                                    Reports include attendance percentages and
-                                    detailed breakdowns
+                                    <div className="text-left">
+                                        <div className="font-semibold text-gray-900">
+                                            {pdfLoading ? 'Preparing PDF…' : 'Export as PDF'}
+                                        </div>
+                                        <div className="text-xs text-gray-500">Portable Document</div>
+                                    </div>
+                                </button>
+
+                                {/* ----------  EXCEL BUTTON  ---------- */}
+                                <button
+                                    onClick={handleExportExcel}
+                                    disabled={excelLoading || !hasAttendance}
+                                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                                    ${excelLoading || !hasAttendance
+                                        ? 'bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed'
+                                        : 'bg-white border-gray-200 hover:bg-gray-50 active:scale-95'}`}
+                                >
+                                    <div className={`p-2 rounded-lg ${excelLoading ? 'bg-gray-200' : 'bg-green-100'}`}>
+                                        {excelLoading ? (
+                                            <div className="w-5 h-5 flex items-center justify-center">
+                                                {/* tiny spinner */}
+                                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                            </div>
+                                        ) : (
+                                            <Sheet className="w-5 h-5 text-green-600" />
+                                        )}
+                                    </div>
+
+                                    <div className="text-left">
+                                        <div className="font-semibold text-gray-900">
+                                            {excelLoading ? 'Preparing Excel…' : 'Export as Excel'}
+                                        </div>
+                                        <div className="text-xs text-gray-500">Spreadsheet (.xlsx)</div>
+                                    </div>
+                                </button>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 rounded-b-3xl">
+                                <p className="text-xs text-gray-500 text-center">
+                                    Download will start automatically
                                 </p>
                             </div>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

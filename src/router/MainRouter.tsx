@@ -32,6 +32,8 @@ import { AttendanceManagement } from "@/components/Accountant/AttendenceManagmen
 import { OwnerScoringForm } from "@/components/Owner/ScoringPage";
 import { OwnerReport } from "@/components/Owner/Reports";
 import { StaffReportView } from "@/components/Owner/reports/staffReports";
+import { StaffKPIDetails } from "@/components/Owner/reports/StaffKPIDetails";
+import { DailyKPIDetails } from "@/components/Owner/reports/DailyKPIDetails";
 import SalesReportPage from "@/components/Owner/reports/salesReport";
 import AttendanceReportPage from "@/components/Owner/reports/attendanceReport";
 import { WalkoutReportPage } from "@/components/Owner/reports/walkoutReport";
@@ -71,6 +73,14 @@ function MainRouter() {
                                     path: "staff",
                                     element: <StaffReportView />,
                                 },
+                        {
+                            path: "staff/:id",
+                            element: <StaffKPIDetails />,
+                        },
+                        {
+                            path: "staff/:id/daily",
+                            element: <DailyKPIDetails />,
+                        },
                                  {
                                     path: "sales",
                                     element: <SalesReportPage />,

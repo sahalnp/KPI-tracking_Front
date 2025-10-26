@@ -426,24 +426,10 @@ const formatNumberShort = (num: number) => {
       <BarChart3 className="h-5 w-5" />
       Floor Performance
     </CardTitle>
-    <CardDescription>Sales by floor</CardDescription>
+    <CardDescription>Sales by Floor: Only 10% of the price is displayed</CardDescription>
+
   </CardHeader>
   <CardContent className="pl-0">
-    <ResponsiveContainer width="100%" height={250}>
-      <BarChart data={floorPerformanceData} margin={{ left: -20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-        <XAxis dataKey="floor" style={{ fontSize: '12px' }} />
-        <YAxis style={{ fontSize: '12px' }} />
-        {/*  OLD:  formatter={(value: number) => formatCurrency(value)}  */}
-        <Tooltip
-          formatter={(value: number) => formatNumberShort(value)}
-          contentStyle={{ borderRadius: '8px' }}
-        />
-        <Bar dataKey="sales" fill="#FF3F33" radius={[8, 8, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
-  </CardContent>
-  {/* <CardContent className="pl-0">
   <ResponsiveContainer width="100%" height={250}>
     <BarChart data={floorPerformanceData} margin={{ left: -20 }}>
       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -459,7 +445,7 @@ const formatNumberShort = (num: number) => {
       <Bar dataKey="sales" fill="#FF3F33" radius={[8, 8, 0, 0]} />
     </BarChart>
   </ResponsiveContainer>
-</CardContent> */}
+</CardContent>
 </Card>
 
 

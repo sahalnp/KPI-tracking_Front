@@ -40,233 +40,39 @@ interface PerformanceReport {
 }
 
 export function OwnerReport() {
-    const [customStartDate, setCustomStartDate] = useState("");
-    const [customEndDate, setCustomEndDate] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [showCustomCalendar, setShowCustomCalendar] = useState(false);
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // +1 because "All Month" is at index 0
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const navigate = useNavigate();
 
-    const [filterType, setFilterType] = useState<
-        "today" | "this-week" | "this-month" | "custom" | "open"
-    >("today");
-
-    // Mock performance data for different date ranges
-    const dailyData: PerformanceReport[] = [
-        {
-            date: "2024-01-15",
-            totalSales: 1250000,
-            totalTarget: 1500000,
-            achievement: 83.3,
-            activeStaff: 24,
-            walkOuts: 12,
-        },
+    const months = [
+        "All Month","January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
     ];
 
-    const monthlyData: PerformanceReport[] = Array.from(
-        { length: 31 },
-        (_, i) => ({
-            date: `2024-01-${String(i + 1).padStart(2, "0")}`,
-            totalSales: Math.floor(Math.random() * 500000) + 1000000,
-            totalTarget: 1500000,
-            achievement: Math.floor(Math.random() * 40) + 60,
-            activeStaff: Math.floor(Math.random() * 5) + 20,
-            walkOuts: Math.floor(Math.random() * 10) + 5,
-        })
-    );
+    const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 4 + i);
 
-    const yearlyData: PerformanceReport[] = Array.from(
-        { length: 12 },
-        (_, i) => ({
-            date: `2024-${String(i + 1).padStart(2, "0")}`,
-            totalSales: Math.floor(Math.random() * 5000000) + 15000000,
-            totalTarget: 18000000,
-            achievement: Math.floor(Math.random() * 30) + 70,
-            activeStaff: Math.floor(Math.random() * 5) + 20,
-            walkOuts: Math.floor(Math.random() * 50) + 150,
-        })
-    );
-
-    // Get current data based on filter type
-    const getCurrentData = () => {
-        switch (filterType) {
-            case "today":
-                return dailyData;
-            case "this-week":
-                return monthlyData;
-            case "this-month":
-                return yearlyData;
-            default:
-                return dailyData;
-        }
+    const isDisabled = (month: number, year: number) => {
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth() + 1; // +1 because "All Month" is at index 0
+        const currentYear = currentDate.getFullYear();
+        
+        // Disable future years
+        if (year > currentYear) return true;
+        // Disable future months in current year
+        if (year === currentYear && month > currentMonth) return true;
+        // Disable "All Month" for future years
+        if (month === 0 && year > currentYear) return true;
+        return false;
     };
 
-
-    function MiniCalendar({
-        start,
-        end,
-        onChange,
-    }: {
-        start: string;
-        end: string;
-        onChange: (s: string, e: string) => void;
-    }) {
-        // ✅ Initialize cursor to current month
-        const [cursor, setCursor] = useState(
-            new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-        );
-
-        const [highlightedDates, setHighlightedDates] = useState<string[]>([]);
-
-        // Highlight dates between start and end
-        useEffect(() => {
-            if (!start || !end) {
-                setHighlightedDates([]);
-                return;
-            }
-
-            const startDate = new Date(start);
-            const endDate = new Date(end);
-            const dates: string[] = [];
-            let current = new Date(startDate);
-
-            while (current <= endDate) {
-                dates.push(current.toISOString().split("T")[0]);
-                current.setDate(current.getDate() + 1);
-            }
-
-            setHighlightedDates(dates);
-        }, [start, end]);
-
-        const monthName = cursor.toLocaleString("en-US", {
-            month: "long",
-            year: "numeric",
-        });
-
-        const daysInMonth = new Date(
-            cursor.getFullYear(),
-            cursor.getMonth() + 1,
-            0
-        ).getDate();
-        const firstDay = new Date(
-            cursor.getFullYear(),
-            cursor.getMonth(),
-            1
-        ).getDay();
-        const today = new Date().toISOString().split("T")[0];
-
-        const dateCells = Array.from(
-            { length: firstDay + daysInMonth },
-            (_, i) => {
-                const day = i - firstDay + 1;
-                if (day <= 0) return null;
-                const iso = new Date(
-                    cursor.getFullYear(),
-                    cursor.getMonth(),
-                    day
-                )
-                    .toISOString()
-                    .split("T")[0];
-                return iso;
-            }
-        );
-
-        const isDisabled = (iso: string) => iso > today;
-        const isStart = (iso: string) => start && iso === start;
-        const isEnd = (iso: string) => end && iso === end;
-
-        const handleDateClick = (iso: string) => {
-            if (isDisabled(iso)) return;
-
-            if (start === iso && !end) {
-                onChange("", "");
-                return;
-            }
-
-            if (start === iso && end === iso) {
-                onChange("", "");
-                return;
-            }
-
-            if (!start || (start && end)) {
-                onChange(iso, "");
-            } else {
-                if (iso >= start) {
-                    onChange(start, iso);
-                } else {
-                    onChange(iso, start);
-                }
-            }
-        };
-
-        const goToPrevMonth = () => {
-            setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1));
-        };
-
-        const goToNextMonth = () => {
-            setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1));
-        };
-
-        return (
-            <div className="w-72 select-none bg-white p-4 rounded-lg shadow-lg border">
-                {/* header */}
-                <div className="flex items-center justify-between mb-2">
-                    <button
-                        onClick={goToPrevMonth}
-                        className="px-2 py-1 hover:bg-accent rounded"
-                    >
-                        ‹
-                    </button>
-                    <span className="font-medium">{monthName}</span>
-                    <button
-                        onClick={goToNextMonth}
-                        className="px-2 py-1 hover:bg-accent rounded"
-                    >
-                        ›
-                    </button>
-                </div>
-
-                {/* weekday labels */}
-                <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground mb-1">
-                    {["S", "M", "T", "W", "T", "F", "S"].map((d) => (
-                        <div key={d}>{d}</div>
-                    ))}
-                </div>
-
-                {/* days */}
-                <div className="grid grid-cols-7 gap-1">
-                    {dateCells.map((iso, idx) =>
-                        iso ? (
-                            <button
-                                key={iso}
-                                onClick={() => handleDateClick(iso)}
-                                disabled={isDisabled(iso)}
-                                className={`h-8 w-8 rounded text-sm transition-colors
-                ${
-                    isDisabled(iso)
-                        ? "text-gray-300 cursor-not-allowed opacity-50"
-                        : "hover:bg-accent"
-                }
-                ${
-                    highlightedDates.includes(iso) &&
-                    !isStart(iso) &&
-                    !isEnd(iso)
-                        ? "bg-red-100 text-red-700"
-                        : ""
-                }
-                ${isStart(iso) ? "bg-red-600 text-white font-bold" : ""}
-                ${isEnd(iso) ? "bg-red-600 text-white font-bold" : ""}
-              `}
-                            >
-                                {new Date(iso).getDate()}
-                            </button>
-                        ) : (
-                            <div key={`empty-${idx}`} />
-                        )
-                    )}
-                </div>
-            </div>
-        );
-    }
+    // Initialize selected month to current month to avoid future months
+    useEffect(() => {
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth() + 1;
+        if (selectedMonth > currentMonth && selectedYear === currentDate.getFullYear()) {
+            setSelectedMonth(currentMonth);
+        }
+    }, [selectedMonth, selectedYear]);
 
     const reports = [
         {
@@ -275,7 +81,7 @@ export function OwnerReport() {
             icon: Users,
             bgColor: "bg-yellow-50",
             iconColor: "text-yellow-600",
-            route: "/owner/reports/staff",
+            route: "/Owner/reports/staff",
         },
         {
             id: 2,
@@ -283,16 +89,16 @@ export function OwnerReport() {
             icon: TrendingUp,
             bgColor: "bg-blue-50",
             iconColor: "text-blue-600",
-            route: "/owner/reports/sales",
+            route: "/Owner/reports/sales",
         },
         {
-  id: 3,
-  name: "Attendance",
-  icon: UserCheck, 
-  bgColor: "bg-blue-50",
-  iconColor: "text-blue-600",
-  route: "/owner/reports/attendance",
-},
+            id: 3,
+            name: "Attendance",
+            icon: UserCheck, 
+            bgColor: "bg-blue-50",
+            iconColor: "text-blue-600",
+            route: "/Owner/reports/attendance",
+        },
 
         {
             id: 4,
@@ -300,7 +106,7 @@ export function OwnerReport() {
             icon: UserX,
             bgColor: "bg-orange-50",
             iconColor: "text-orange-600",
-            route: "/owner/reports/walkout",
+            route: "/Owner/reports/walkout",
         },
     ];
 
@@ -325,113 +131,55 @@ export function OwnerReport() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <Filter className="h-5 w-5" />
-                        Report Filters
+                        <Calendar className="h-5 w-5" />
+                        Select Month & Year
                     </CardTitle>
                     <CardDescription>
-                        Select date range to view performance data
+                        Choose the month and year for your reports
                     </CardDescription>
                 </CardHeader>
 
-                <CardContent className="space-y-4">
-                    {/* -------- FILTER SECTION -------- */}
-                    <div className="relative flex items-center gap-3 w-full max-w-sm">
-                        {/* --- TODAY DROPDOWN --- */}
-                        <div className="relative flex-1">
-                            <motion.button
-                                whileTap={{ scale: 0.97 }}
-                                onClick={() =>
-                                    setFilterType((p) =>
-                                        p === "open" ? "today" : "open"
-                                    )
-                                }
-                                className="flex items-center justify-between w-full px-3 py-2 border rounded-lg bg-background h-10"
+                <CardContent>
+                    <div className="flex gap-4 items-end">
+                        {/* Month Selection */}
+                        <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Month
+                            </label>
+                            <select
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             >
-                                <span className="capitalize flex items-center gap-2">
-                                    <Calendar className="h-4 w-4" />
-                                    {filterType === "open"
-                                        ? "Today"
-                                        : filterType.replace("-", " ")}
-                                </span>
-                                <motion.div
-                                    animate={{
-                                        rotate: filterType === "open" ? 180 : 0,
-                                    }}
-                                    transition={{ duration: 0.2 }}
-                                >
-                                    <ChevronDown className="h-4 w-4" />
-                                </motion.div>
-                            </motion.button>
-
-                            <AnimatePresence>
-                                {filterType === "open" && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg"
+                                {months.map((month, index) => (
+                                    <option 
+                                        key={month} 
+                                        value={index}
+                                        disabled={isDisabled(index, selectedYear)}
                                     >
-                                        {(
-                                            [
-                                                "today",
-                                                "this-week",
-                                                "this-month",
-                                            ] as const
-                                        ).map((t) => (
-                                            <button
-                                                key={t}
-                                                onClick={() => setFilterType(t)}
-                                                className="w-full text-left px-3 py-2 hover:bg-accent capitalize"
-                                            >
-                                                {t.replace("-", " ")}
-                                            </button>
-                                        ))}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                                        {month}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setShowCustomCalendar((c) => !c);
-                            }}
-                            className="flex-1 h-10 flex items-center justify-center gap-2 rounded-lg px-3"
-                        >
-                            <Calendar className="h-4 w-4" />
-                            <span>Custom</span>
-
-                            {/* rotating chevron */}
-                            <motion.div
-                                animate={{
-                                    rotate: showCustomCalendar ? 180 : 0,
-                                }}
-                                transition={{ duration: 0.2 }}
+                        {/* Year Selection */}
+                        <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Year
+                            </label>
+                            <select
+                                value={selectedYear}
+                                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             >
-                                <ChevronDown className="h-4 w-4" />
-                            </motion.div>
-                        </Button>
-
-                        {/* calendar pop-over */}
-                        <AnimatePresence>
-                            {showCustomCalendar && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    className="absolute z-20 top-full left-0 right-0 mt-2"
-                                >
-                                    <MiniCalendar
-                                        start={customStartDate}
-                                        end={customEndDate}
-                                        onChange={(s, e) => {
-                                            setCustomStartDate(s);
-                                            setCustomEndDate(e);
-                                        }}
-                                    />
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                                {years.map((year) => (
+                                    <option key={year} value={year}>
+                                        {year}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -484,55 +232,40 @@ export function OwnerReport() {
                                         //   navigate(`${report.route}?filter=${filterType}&start=${start}&end=${end}`);
                                         // }}
                                         onClick={() => {
-                                            const today = new Date();
-                                            const fmt = (d: Date) =>
-                                                d.toISOString().split("T")[0];
+                                            const fmt = (d: Date) => d.toISOString().split("T")[0];
+                                            
+                                            if (selectedMonth === 0) {
+                                                // "All Month" selected
+                                                const currentDate = new Date();
+                                                const currentYear = currentDate.getFullYear();
+                                                const currentMonth = currentDate.getMonth();
+                                                
+                                                let start, end;
+                                                
+                                                if (selectedYear === currentYear) {
+                                                    // Current year: Jan 1st to current month 31st
+                                                    start = new Date(selectedYear, 0, 1); // January 1st
+                                                    end = new Date(selectedYear, currentMonth + 1, 0); // Last day of current month
+                                                } else {
+                                                    // Previous years: Jan 1st to Dec 31st
+                                                    start = new Date(selectedYear, 0, 1); // January 1st
+                                                    end = new Date(selectedYear, 11, 31); // December 31st
+                                                }
+                                                
+                                                navigate(`${report.route}?start=${fmt(start)}&end=${fmt(end)}&month=all&year=${selectedYear}`);
+                                            } else {
+                                                // Specific month selected
+                                                const monthIndex = selectedMonth - 1; // Convert to 0-based month index (selectedMonth is 1-based due to "All Month" at index 0)
+                                                const startOfMonth = new Date(selectedYear, monthIndex, 1);
+                                                const endOfMonth = new Date(selectedYear, monthIndex + 1, 0);
+                                                
+                                                const start = fmt(startOfMonth);
+                                                const end = fmt(endOfMonth);
 
-                                            // Start of week (Monday)
-                                            const startOfWeek = new Date(today);
-                                            const day = today.getDay(); // 0 = Sunday, 1 = Monday ...
-                                            startOfWeek.setDate(
-                                                today.getDate() -
-                                                    (day === 0 ? 6 : day - 1)
-                                            );
-
-                                            // End of week (Sunday)
-                                            const endOfWeek = new Date(
-                                                startOfWeek
-                                            );
-                                            endOfWeek.setDate(
-                                                startOfWeek.getDate() + 6
-                                            );
-
-                                            // Start of month
-                                            const startOfMonth = new Date(
-                                                today.getFullYear(),
-                                                today.getMonth(),
-                                                1
-                                            );
-
-                                            const [start, end] =
-                                                customStartDate && customEndDate
-                                                    ? [
-                                                          customStartDate,
-                                                          customEndDate,
-                                                      ]
-                                                    : filterType === "this-week"
-                                                    ? [
-                                                          fmt(startOfWeek),
-                                                          fmt(endOfWeek),
-                                                      ]
-                                                    : filterType ===
-                                                      "this-month"
-                                                    ? [
-                                                          fmt(startOfMonth),
-                                                          fmt(today),
-                                                      ]
-                                                    : [fmt(today), fmt(today)];
-
-                                            navigate(
-                                                `${report.route}?filter=${filterType}&start=${start}&end=${end}`
-                                            );
+                                                navigate(
+                                                    `${report.route}?start=${start}&end=${end}&month=${monthIndex}&year=${selectedYear}`
+                                                );
+                                            }
                                         }}
                                         className="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
                                     >

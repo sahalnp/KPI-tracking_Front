@@ -328,37 +328,6 @@ export const WalkoutReportPage: React.FC<WalkoutReportPageProps> = ({
 
     return (
         <div className="space-y-6 p-6">
-            <motion.div
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="bg-white rounded-lg shadow-sm p-4 flex items-center justify-between"
-            >
-                  <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                        onClick={() => navigate(-1)}
-                      className="p-2 rounded-full hover:bg-red-50 transition"
-                    >
-                      <ArrowLeft className="w-5 h-5 text-red-500" />
-                    
-                    </motion.button>
-                <div>
-                    <h1 className="text-xl font-semibold text-gray-900">
-                        Walkout Reports
-                    </h1>
-                    <p className="text-sm text-gray-600">
-                        {getDateRangeLabel()}
-                    </p>
-                </div>
-
-                <Button
-                    className="bg-transparent border border-gray-300 p-2 rounded-full transition-transform duration-200 hover:scale-110 hover:bg-gray-100 shadow-sm"
-                    onClick={() => setModalOpen(true)}
-                >
-                    <Download className="h-8 w-8 text-red-500" />
-                </Button>
-            </motion.div>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-2 gap-4">
