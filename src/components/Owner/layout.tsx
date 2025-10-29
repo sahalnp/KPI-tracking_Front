@@ -40,9 +40,19 @@ function BottomNav({ userRole, currentPage, onNavigate }: BottomNavProps) {
             to: "/owner/dashboard",
         },
         { id: "scoring", label: "Scoring", icon: ClipboardCheck },
-        { id: "reports", label: "Reports", icon: BarChart, to: "/owner/reports" },
+        {
+            id: "reports",
+            label: "Reports",
+            icon: BarChart,
+            to: "/owner/reports",
+        },
 
-        { id: "account", label: "Settings", icon: Settings, to: "/owner/account" },
+        {
+            id: "account",
+            label: "Settings",
+            icon: Settings,
+            to: "/owner/account",
+        },
     ];
 
     const tabs = userRole === "Owner" ? supervisorTabs : [];
@@ -107,14 +117,16 @@ export function OwnerLayout() {
 
     // Check if we're on any report page (not the main reports page)
     const pathParts = location.pathname.split("/");
-    const isMainReportsPage = pathParts[1] === "Owner" && 
-                             pathParts[2] === "reports" && 
-                             pathParts.length === 3; // /Owner/reports
-    
-    const isAnyReportPage = pathParts[1] === "Owner" && 
-                           pathParts[2] === "reports" && 
-                           pathParts.length > 3; // /Owner/reports/anything
-    
+    const isMainReportsPage =
+        pathParts[1] === "Owner" &&
+        pathParts[2] === "reports" &&
+        pathParts.length === 3; // /Owner/reports
+
+    const isAnyReportPage =
+        pathParts[1] === "Owner" &&
+        pathParts[2] === "reports" &&
+        pathParts.length > 3; // /Owner/reports/anything
+
     // Get the report type for the header title
     const getReportTitle = () => {
         if (pathParts[3] === "staff") {
@@ -135,7 +147,19 @@ export function OwnerLayout() {
     // Get staff ID from URL for download functionality
     const getStaffId = () => {
         const pathParts = location.pathname.split("/");
-        return pathParts[pathParts.length - 1];
+        // For URLs like /Owner/reports/staff/123/daily, we want the staff ID (123)
+        // For URLs like /Owner/reports/staff/123, we want the staff ID (123)
+        const staffIndex = pathParts.findIndex(part => part === "staff");
+        if (staffIndex !== -1 && pathParts[staffIndex + 1]) {
+            return pathParts[staffIndex + 1];
+        }
+        return pathParts[pathParts.length - 1]; // fallback
+    };
+
+    // Get month parameter for conditional export options
+    const getMonthParam = () => {
+        const searchParams = new URLSearchParams(location.search);
+        return searchParams.get("month");
     };
 
     // Get date range from URL params for KPI details page
@@ -145,24 +169,39 @@ export function OwnerLayout() {
         const endDate = searchParams.get("end");
         const month = searchParams.get("month");
         const year = searchParams.get("year");
-        
+
         if (startDate && endDate) {
-            return `${new Date(startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`;
-        } else if (month === 'all' && year) {
+            return `${new Date(startDate).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+            })} - ${new Date(endDate).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+            })}`;
+        } else if (month === "all" && year) {
             // Show "January 1st to current month 30th" for "all" month selection
             const currentDate = new Date();
             const yearNum = parseInt(year);
             const currentYear = currentDate.getFullYear();
-            
+
             if (yearNum === currentYear) {
                 // Current year - show January 1st to current month 30th
-                const jan1 = new Date(yearNum, 0, 1).toLocaleDateString('en-US', {
-                    month: 'long',
-                    day: 'numeric'
-                });
+                const jan1 = new Date(yearNum, 0, 1).toLocaleDateString(
+                    "en-US",
+                    {
+                        month: "long",
+                        day: "numeric",
+                    }
+                );
                 const currentMonth = currentDate.getMonth();
-                const currentMonthName = new Date(yearNum, currentMonth, 1).toLocaleDateString('en-US', {
-                    month: 'long'
+                const currentMonthName = new Date(
+                    yearNum,
+                    currentMonth,
+                    1
+                ).toLocaleDateString("en-US", {
+                    month: "long",
                 });
                 return `${jan1} to ${currentMonthName} 30, ${yearNum}`;
             } else {
@@ -171,12 +210,24 @@ export function OwnerLayout() {
             }
         } else if (month && year) {
             const monthIndex = parseInt(month);
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'];
-            const monthName = monthNames[monthIndex] || 'Unknown';
+            const monthNames = [
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December",
+            ];
+            const monthName = monthNames[monthIndex] || "Unknown";
             return `${monthName} ${year}`;
         }
-        return 'Current Period';
+        return "Current Period";
     };
 
     // Download functions
@@ -185,25 +236,58 @@ export function OwnerLayout() {
         try {
             const reportType = pathParts[3];
             const staffId = getStaffId();
-            let endpoint = '';
-            let filename = '';
+            const searchParams = new URLSearchParams(location.search);
+            const month = searchParams.get("month");
+            const year = searchParams.get("year");
+            const startDate = searchParams.get("start");
+            const endDate = searchParams.get("end");
+            
+            let endpoint = "";
+            let filename = "";
 
-            if (reportType === 'staff' && staffId) {
-                endpoint = `/owner/staff/${staffId}/kpi-details/export?format=pdf&period=${period}`;
+            if (reportType === "staff" && staffId) {
+                // Build query parameters for staff export
+                const params = new URLSearchParams({
+                    format: "pdf",
+                    period: period
+                });
+                
+                if (month) params.append("month", month);
+                if (year) params.append("year", year);
+                if (startDate) params.append("start", startDate);
+                if (endDate) params.append("end", endDate);
+                
+                endpoint = `/owner/staff/${staffId}/kpi-details/export?${params.toString()}`;
                 filename = `Staff-KPI-${period}.pdf`;
-            } else if (reportType === 'attendance') {
-                endpoint = `/owner/attendance-report/export?format=pdf&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`;
+                
+                console.log("📤 LAYOUT PDF EXPORT REQUEST:");
+                console.log("  - Staff ID:", staffId);
+                console.log("  - Format: pdf");
+                console.log("  - Period:", period);
+                console.log("  - Month:", month);
+                console.log("  - Year:", year);
+                console.log("  - Full URL:", endpoint);
+            } else if (reportType === "attendance") {
+                endpoint = `/owner/attendance-report/export?format=pdf&month=${
+                    new Date().getMonth() + 1
+                }&year=${new Date().getFullYear()}`;
                 filename = `Attendance-Report-${period}.pdf`;
-            } else if (reportType === 'sales') {
-                endpoint = `/owner/sales-report/export?format=pdf&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`;
+            } else if (reportType === "sales") {
+                endpoint = `/owner/sales-report/export?format=pdf&month=${
+                    new Date().getMonth() + 1
+                }&year=${new Date().getFullYear()}`;
                 filename = `Sales-Report-${period}.pdf`;
-            } else if (reportType === 'walkout') {
-                endpoint = `/owner/walkout-report/export?format=pdf&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`;
+            } else if (reportType === "walkout") {
+                endpoint = `/owner/walkout-report/export?format=pdf&month=${
+                    new Date().getMonth() + 1
+                }&year=${new Date().getFullYear()}`;
                 filename = `Walkout-Report-${period}.pdf`;
             }
 
             if (endpoint) {
-                const { data } = await axiosInstance.get(endpoint, { responseType: "blob" });
+                const { data } = await axiosInstance.get(endpoint, {
+                    responseType: "blob",
+                });
                 const blob = new Blob([data], { type: "application/pdf" });
                 saveAs(blob, filename);
                 toast.success("PDF download started");
@@ -220,26 +304,61 @@ export function OwnerLayout() {
         try {
             const reportType = pathParts[3];
             const staffId = getStaffId();
-            let endpoint = '';
-            let filename = '';
+            const searchParams = new URLSearchParams(location.search);
+            const month = searchParams.get("month");
+            const year = searchParams.get("year");
+            const startDate = searchParams.get("start");
+            const endDate = searchParams.get("end");
+            
+            let endpoint = "";
+            let filename = "";
 
-            if (reportType === 'staff' && staffId) {
-                endpoint = `/owner/staff/${staffId}/kpi-details/export?format=excel&period=${period}`;
+            if (reportType === "staff" && staffId) {
+                // Build query parameters for staff export
+                const params = new URLSearchParams({
+                    format: "excel",
+                    period: period
+                });
+                
+                if (month) params.append("month", month);
+                if (year) params.append("year", year);
+                if (startDate) params.append("start", startDate);
+                if (endDate) params.append("end", endDate);
+                
+                endpoint = `/owner/staff/${staffId}/kpi-details/export?${params.toString()}`;
                 filename = `Staff-KPI-${period}.xlsx`;
-            } else if (reportType === 'attendance') {
-                endpoint = `/owner/attendance-report/export?format=excel&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`;
+                
+                console.log("📤 LAYOUT EXCEL EXPORT REQUEST:");
+                console.log("  - Staff ID:", staffId);
+                console.log("  - Format: excel");
+                console.log("  - Period:", period);
+                console.log("  - Month:", month);
+                console.log("  - Year:", year);
+                console.log("  - Full URL:", endpoint);
+            } else if (reportType === "attendance") {
+                endpoint = `/owner/attendance-report/export?format=excel&month=${
+                    new Date().getMonth() + 1
+                }&year=${new Date().getFullYear()}`;
                 filename = `Attendance-Report-${period}.xlsx`;
-            } else if (reportType === 'sales') {
-                endpoint = `/owner/sales-report/export?format=excel&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`;
+            } else if (reportType === "sales") {
+                endpoint = `/owner/sales-report/export?format=excel&month=${
+                    new Date().getMonth() + 1
+                }&year=${new Date().getFullYear()}`;
                 filename = `Sales-Report-${period}.xlsx`;
-            } else if (reportType === 'walkout') {
-                endpoint = `/owner/walkout-report/export?format=excel&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`;
+            } else if (reportType === "walkout") {
+                endpoint = `/owner/walkout-report/export?format=excel&month=${
+                    new Date().getMonth() + 1
+                }&year=${new Date().getFullYear()}`;
                 filename = `Walkout-Report-${period}.xlsx`;
             }
 
             if (endpoint) {
-                const { data } = await axiosInstance.get(endpoint, { responseType: "blob" });
-                const blob = new Blob([data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                const { data } = await axiosInstance.get(endpoint, {
+                    responseType: "blob",
+                });
+                const blob = new Blob([data], {
+                    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                });
                 saveAs(blob, filename);
                 toast.success("Excel download started");
             }
@@ -301,7 +420,7 @@ export function OwnerLayout() {
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <button 
+                                    <button
                                         onClick={() => setModalOpen(true)}
                                         className="p-2 rounded-full hover:bg-gray-100 transition"
                                     >
@@ -406,161 +525,247 @@ export function OwnerLayout() {
                                     Choose export period:
                                 </p>
 
-                                {/* This Week PDF */}
-                                <button
-                                    onClick={() => handleExportPDF('week')}
-                                    disabled={pdfLoading}
-                                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
-              ${
-                  pdfLoading
-                      ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
-                      : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
-              }`}
-                                >
-                                    <div
-                                        className={`p-2 rounded-lg ${
-                                            pdfLoading
-                                                ? "bg-gray-200"
-                                                : "bg-red-100"
-                                        }`}
-                                    >
-                                        {pdfLoading ? (
-                                            <div className="w-5 h-5 flex items-center justify-center">
-                                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                {getMonthParam() === "all" ? (
+                                    // When month is "all" - show only PDF and Excel options
+                                    <>
+                                        {/* Export as PDF */}
+                                        <button
+                                            onClick={() => handleExportPDF("month")}
+                                            disabled={pdfLoading}
+                                            className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                      ${
+                          pdfLoading
+                              ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
+                              : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
+                      }`}
+                                        >
+                                            <div
+                                                className={`p-2 rounded-lg ${
+                                                    pdfLoading
+                                                        ? "bg-gray-200"
+                                                        : "bg-red-100"
+                                                }`}
+                                            >
+                                                {pdfLoading ? (
+                                                    <div className="w-5 h-5 flex items-center justify-center">
+                                                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                    </div>
+                                                ) : (
+                                                    <FileText className="w-5 h-5 text-red-600" />
+                                                )}
                                             </div>
-                                        ) : (
-                                            <FileText className="w-5 h-5 text-red-600" />
-                                        )}
-                                    </div>
 
-                                    <div className="text-left">
-                                        <div className="font-semibold text-gray-900">
-                                            {pdfLoading
-                                                ? "Preparing PDF…"
-                                                : "Export This Week as PDF"}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                            Last 7 days
-                                        </div>
-                                    </div>
-                                </button>
-
-                                {/* This Week Excel */}
-                                <button
-                                    onClick={() => handleExportExcel('week')}
-                                    disabled={excelLoading}
-                                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
-              ${
-                  excelLoading
-                      ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
-                      : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
-              }`}
-                                >
-                                    <div
-                                        className={`p-2 rounded-lg ${
-                                            excelLoading
-                                                ? "bg-gray-200"
-                                                : "bg-green-100"
-                                        }`}
-                                    >
-                                        {excelLoading ? (
-                                            <div className="w-5 h-5 flex items-center justify-center">
-                                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                            <div className="text-left">
+                                                <div className="font-semibold text-gray-900">
+                                                    {pdfLoading
+                                                        ? "Preparing PDF…"
+                                                        : "Export as PDF"}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    All months data
+                                                </div>
                                             </div>
-                                        ) : (
-                                            <Sheet className="w-5 h-5 text-green-600" />
-                                        )}
-                                    </div>
+                                        </button>
 
-                                    <div className="text-left">
-                                        <div className="font-semibold text-gray-900">
-                                            {excelLoading
-                                                ? "Preparing Excel…"
-                                                : "Export This Week as Excel"}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                            Last 7 days
-                                        </div>
-                                    </div>
-                                </button>
-
-                                {/* This Month PDF */}
-                                <button
-                                    onClick={() => handleExportPDF('month')}
-                                    disabled={pdfLoading}
-                                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
-              ${
-                  pdfLoading
-                      ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
-                      : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
-              }`}
-                                >
-                                    <div
-                                        className={`p-2 rounded-lg ${
-                                            pdfLoading
-                                                ? "bg-gray-200"
-                                                : "bg-red-100"
-                                        }`}
-                                    >
-                                        {pdfLoading ? (
-                                            <div className="w-5 h-5 flex items-center justify-center">
-                                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                        {/* Export as Excel */}
+                                        <button
+                                            onClick={() => handleExportExcel("month")}
+                                            disabled={excelLoading}
+                                            className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                      ${
+                          excelLoading
+                              ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
+                              : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
+                      }`}
+                                        >
+                                            <div
+                                                className={`p-2 rounded-lg ${
+                                                    excelLoading
+                                                        ? "bg-gray-200"
+                                                        : "bg-green-100"
+                                                }`}
+                                            >
+                                                {excelLoading ? (
+                                                    <div className="w-5 h-5 flex items-center justify-center">
+                                                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                    </div>
+                                                ) : (
+                                                    <Sheet className="w-5 h-5 text-green-600" />
+                                                )}
                                             </div>
-                                        ) : (
-                                            <FileText className="w-5 h-5 text-red-600" />
-                                        )}
-                                    </div>
 
-                                    <div className="text-left">
-                                        <div className="font-semibold text-gray-900">
-                                            {pdfLoading
-                                                ? "Preparing PDF…"
-                                                : "Export This Month as PDF"}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                            Current month
-                                        </div>
-                                    </div>
-                                </button>
-
-                                {/* This Month Excel */}
-                                <button
-                                    onClick={() => handleExportExcel('month')}
-                                    disabled={excelLoading}
-                                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
-              ${
-                  excelLoading
-                      ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
-                      : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
-              }`}
-                                >
-                                    <div
-                                        className={`p-2 rounded-lg ${
-                                            excelLoading
-                                                ? "bg-gray-200"
-                                                : "bg-green-100"
-                                        }`}
-                                    >
-                                        {excelLoading ? (
-                                            <div className="w-5 h-5 flex items-center justify-center">
-                                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                            <div className="text-left">
+                                                <div className="font-semibold text-gray-900">
+                                                    {excelLoading
+                                                        ? "Preparing Excel…"
+                                                        : "Export as Excel"}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    All months data
+                                                </div>
                                             </div>
-                                        ) : (
-                                            <Sheet className="w-5 h-5 text-green-600" />
-                                        )}
-                                    </div>
+                                        </button>
+                                    </>
+                                ) : (
+                                    // When month is specific - show week and month options
+                                    <>
+                                        {/* This Week PDF */}
+                                        <button
+                                            onClick={() => handleExportPDF("week")}
+                                            disabled={pdfLoading}
+                                            className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                      ${
+                          pdfLoading
+                              ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
+                              : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
+                      }`}
+                                        >
+                                            <div
+                                                className={`p-2 rounded-lg ${
+                                                    pdfLoading
+                                                        ? "bg-gray-200"
+                                                        : "bg-red-100"
+                                                }`}
+                                            >
+                                                {pdfLoading ? (
+                                                    <div className="w-5 h-5 flex items-center justify-center">
+                                                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                    </div>
+                                                ) : (
+                                                    <FileText className="w-5 h-5 text-red-600" />
+                                                )}
+                                            </div>
 
-                                    <div className="text-left">
-                                        <div className="font-semibold text-gray-900">
-                                            {excelLoading
-                                                ? "Preparing Excel…"
-                                                : "Export This Month as Excel"}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                            Current month
-                                        </div>
-                                    </div>
-                                </button>
+                                            <div className="text-left">
+                                                <div className="font-semibold text-gray-900">
+                                                    {pdfLoading
+                                                        ? "Preparing PDF…"
+                                                        : "Export This Week as PDF"}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    Last 7 days
+                                                </div>
+                                            </div>
+                                        </button>
+
+                                        {/* This Week Excel */}
+                                        <button
+                                            onClick={() => handleExportExcel("week")}
+                                            disabled={excelLoading}
+                                            className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                      ${
+                          excelLoading
+                              ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
+                              : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
+                      }`}
+                                        >
+                                            <div
+                                                className={`p-2 rounded-lg ${
+                                                    excelLoading
+                                                        ? "bg-gray-200"
+                                                        : "bg-green-100"
+                                                }`}
+                                            >
+                                                {excelLoading ? (
+                                                    <div className="w-5 h-5 flex items-center justify-center">
+                                                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                    </div>
+                                                ) : (
+                                                    <Sheet className="w-5 h-5 text-green-600" />
+                                                )}
+                                            </div>
+
+                                            <div className="text-left">
+                                                <div className="font-semibold text-gray-900">
+                                                    {excelLoading
+                                                        ? "Preparing Excel…"
+                                                        : "Export This Week as Excel"}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    Last 7 days
+                                                </div>
+                                            </div>
+                                        </button>
+
+                                        {/* This Month PDF */}
+                                        <button
+                                            onClick={() => handleExportPDF("month")}
+                                            disabled={pdfLoading}
+                                            className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                      ${
+                          pdfLoading
+                              ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
+                              : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
+                      }`}
+                                        >
+                                            <div
+                                                className={`p-2 rounded-lg ${
+                                                    pdfLoading
+                                                        ? "bg-gray-200"
+                                                        : "bg-red-100"
+                                                }`}
+                                            >
+                                                {pdfLoading ? (
+                                                    <div className="w-5 h-5 flex items-center justify-center">
+                                                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                    </div>
+                                                ) : (
+                                                    <FileText className="w-5 h-5 text-red-600" />
+                                                )}
+                                            </div>
+
+                                            <div className="text-left">
+                                                <div className="font-semibold text-gray-900">
+                                                    {pdfLoading
+                                                        ? "Preparing PDF…"
+                                                        : "Export This Month as PDF"}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    Current month
+                                                </div>
+                                            </div>
+                                        </button>
+
+                                        {/* This Month Excel */}
+                                        <button
+                                            onClick={() => handleExportExcel("month")}
+                                            disabled={excelLoading}
+                                            className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                      ${
+                          excelLoading
+                              ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
+                              : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
+                      }`}
+                                        >
+                                            <div
+                                                className={`p-2 rounded-lg ${
+                                                    excelLoading
+                                                        ? "bg-gray-200"
+                                                        : "bg-green-100"
+                                                }`}
+                                            >
+                                                {excelLoading ? (
+                                                    <div className="w-5 h-5 flex items-center justify-center">
+                                                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                    </div>
+                                                ) : (
+                                                    <Sheet className="w-5 h-5 text-green-600" />
+                                                )}
+                                            </div>
+
+                                            <div className="text-left">
+                                                <div className="font-semibold text-gray-900">
+                                                    {excelLoading
+                                                        ? "Preparing Excel…"
+                                                        : "Export This Month as Excel"}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    Current month
+                                                </div>
+                                            </div>
+                                        </button>
+                                    </>
+                                )}
                             </div>
 
                             {/* Footer */}
