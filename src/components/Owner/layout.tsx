@@ -1,3 +1,4 @@
+
 // src/pages/supervisor/SupervisorLayout.tsx
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -114,6 +115,10 @@ export function OwnerLayout() {
     const [modalOpen, setModalOpen] = useState(false);
     const [pdfLoading, setPdfLoading] = useState(false);
     const [excelLoading, setExcelLoading] = useState(false);
+    const [weekPdfLoading, setWeekPdfLoading] = useState(false);
+    const [monthPdfLoading, setMonthPdfLoading] = useState(false);
+    const [weekExcelLoading, setWeekExcelLoading] = useState(false);
+    const [monthExcelLoading, setMonthExcelLoading] = useState(false);
 
     // Check if we're on any report page (not the main reports page)
     const pathParts = location.pathname.split("/");
@@ -144,14 +149,58 @@ export function OwnerLayout() {
         return "Reports";
     };
 
+    // Check if we're on the main staff reports page (not individual staff details)
+    const isMainStaffReportsPage = 
+        pathParts[1] === "Owner" &&
+        pathParts[2] === "reports" &&
+        pathParts[3] === "staff" &&
+        pathParts.length === 4; // /Owner/reports/staff
+
+    // Check if we're on attendance reports page
+    const isAttendanceReportsPage = 
+        pathParts[1] === "Owner" &&
+        pathParts[2] === "reports" &&
+        pathParts[3] === "attendance";
+
+    // Check if we're on floor-wise walkout page
+    const isFloorWiseWalkoutPage = 
+        pathParts[1] === "Owner" &&
+        pathParts[2] === "reports" &&
+        ((pathParts[3] === "floor-wise-walkout") || (pathParts[3] === "walkout" && pathParts[4] === "floor-wise-walkout"));
+
+    // Check if we're on walkout reports page root or any child under it
+    const isWalkoutReportsPage =
+        pathParts[1] === "Owner" &&
+        pathParts[2] === "reports" &&
+        pathParts[3] === "walkout";
+
+    // Check if we're on sales reports page
+    const isSalesReportsPage =
+        pathParts[1] === "Owner" &&
+        pathParts[2] === "reports" &&
+        pathParts[3] === "sales";
+
+    // Check if we're on staff sales page
+    const isStaffSalesPage =
+        pathParts[1] === "Owner" &&
+        pathParts[2] === "reports" &&
+        pathParts[3] === "sales" &&
+        pathParts[4] === "staffSales";
+
     // Get staff ID from URL for download functionality
     const getStaffId = () => {
         const pathParts = location.pathname.split("/");
         // For URLs like /Owner/reports/staff/123/daily, we want the staff ID (123)
         // For URLs like /Owner/reports/staff/123, we want the staff ID (123)
+        // For URLs like /Owner/reports/sales/staffSales/123, we want the staff ID (123)
         const staffIndex = pathParts.findIndex(part => part === "staff");
         if (staffIndex !== -1 && pathParts[staffIndex + 1]) {
             return pathParts[staffIndex + 1];
+        }
+        // Check for staffSales route
+        const staffSalesIndex = pathParts.findIndex(part => part === "staffSales");
+        if (staffSalesIndex !== -1 && pathParts[staffSalesIndex + 1]) {
+            return pathParts[staffSalesIndex + 1];
         }
         return pathParts[pathParts.length - 1]; // fallback
     };
@@ -162,11 +211,98 @@ export function OwnerLayout() {
         return searchParams.get("month");
     };
 
+    // Get floor name from URL params for floor-wise walkout
+    const getFloorName = () => {
+        const searchParams = new URLSearchParams(location.search);
+        return searchParams.get("floor") || "";
+    };
+
+    // Get display text for export buttons on staff sales page
+    const getStaffSalesExportDisplay = () => {
+        const searchParams = new URLSearchParams(location.search);
+        const monthParam = searchParams.get("month");
+        const yearParam = searchParams.get("year");
+        
+        if (monthParam === "all") {
+            return {
+                title: "Export All Months",
+                subtitle: "All months data"
+            };
+        } else if (monthParam) {
+            // monthParam is 1-based (October = 10)
+            const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+            const monthIndex = parseInt(monthParam); // monthParam is already 1-based
+            const monthName = monthNames[monthIndex - 1]; // Subtract 1 to convert to 0-based array index
+            const displayYear = yearParam ? parseInt(yearParam) : new Date().getFullYear();
+            return {
+                title: `Export ${monthName}`,
+                subtitle: `${monthName} ${displayYear}`
+            };
+        }
+        
+        return {
+            title: "Export This Month",
+            subtitle: "Current month"
+        };
+    };
+
+    // Get display text for export buttons on floor-wise page
+    const getFloorWiseExportDisplay = () => {
+        const searchParams = new URLSearchParams(location.search);
+        const floorName = searchParams.get("floor") || "";
+        const monthParam = searchParams.get("month");
+        const yearParam = searchParams.get("year");
+        const startParam = searchParams.get("start") || searchParams.get("startDate");
+        
+        console.log('🔍 getFloorWiseExportDisplay params:', { floorName, monthParam, yearParam, startParam });
+        
+        if (monthParam === "all") {
+            return {
+                title: "Export All Months",
+                subtitle: `All months data for ${floorName} Floor`
+            };
+        } else if (monthParam) {
+            // monthParam is 1-based (October = 10)
+            const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+            const monthIndex = parseInt(monthParam); // monthParam is already 1-based
+            const monthName = monthNames[monthIndex - 1]; // Subtract 1 to convert to 0-based array index
+            const displayYear = yearParam ? parseInt(yearParam) : new Date().getFullYear();
+            console.log('📅 Using monthParam (1-based):', { monthParam, monthIndex, monthName, displayYear });
+            return {
+                title: `Export ${monthName}`,
+                subtitle: `${floorName} Floor - ${monthName} ${displayYear}`
+            };
+        } else if (startParam) {
+            // Fallback: derive from startDate if monthParam not available
+            const date = new Date(startParam + 'T00:00:00'); // Add time to avoid timezone issues
+            const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+            const monthName = monthNames[date.getMonth()];
+            const displayYear = yearParam ? parseInt(yearParam) : date.getFullYear();
+            console.log('📅 Using startParam fallback:', { 
+                startParam, 
+                date: date.toISOString(), 
+                monthIndex: date.getMonth(), 
+                monthName, 
+                displayYear 
+            });
+            return {
+                title: `Export ${monthName}`,
+                subtitle: `${floorName} Floor - ${monthName} ${displayYear}`
+            };
+        }
+        
+        return {
+            title: "Export This Month",
+            subtitle: `${floorName} Floor - Current month`
+        };
+    };
+
     // Get date range from URL params for KPI details page
     const getDateRange = () => {
         const searchParams = new URLSearchParams(location.search);
-        const startDate = searchParams.get("start");
-        const endDate = searchParams.get("end");
+        // Read both legacy (start/end) and new (startDate/endDate) params
+        const startDate = searchParams.get("start") || searchParams.get("startDate");
+        const endDate = searchParams.get("end") || searchParams.get("endDate");
         const month = searchParams.get("month");
         const year = searchParams.get("year");
 
@@ -232,24 +368,29 @@ export function OwnerLayout() {
 
     // Download functions
     const handleExportPDF = async (period: string) => {
-        setPdfLoading(true);
+        if (period === "week") {
+            setWeekPdfLoading(true);
+        } else if (period === "month") {
+            setMonthPdfLoading(true);
+        } else {
+            setPdfLoading(true);
+        }
         try {
             const reportType = pathParts[3];
             const staffId = getStaffId();
-            const searchParams = new URLSearchParams(location.search);
-            const month = searchParams.get("month");
-            const year = searchParams.get("year");
-            const startDate = searchParams.get("start");
-            const endDate = searchParams.get("end");
-            
             let endpoint = "";
             let filename = "";
 
-            if (reportType === "staff" && staffId) {
-                // Build query parameters for staff export
+            if (isMainStaffReportsPage) {
+                // Handle main staff reports page - export all staff as table
+                const searchParams = new URLSearchParams(location.search);
+                const month = searchParams.get("month");
+                const year = searchParams.get("year");
+                const startDate = searchParams.get("start");
+                const endDate = searchParams.get("end");
+                
                 const params = new URLSearchParams({
-                    format: "pdf",
-                    period: period
+                    format: "pdf"
                 });
                 
                 if (month) params.append("month", month);
@@ -257,31 +398,190 @@ export function OwnerLayout() {
                 if (startDate) params.append("start", startDate);
                 if (endDate) params.append("end", endDate);
                 
-                endpoint = `/owner/staff/${staffId}/kpi-details/export?${params.toString()}`;
+                endpoint = `/owner/staffReport/export?${params.toString()}`;
+                filename = `Staff-Report.pdf`;
+            } else if (reportType === "staff" && staffId) {
+                endpoint = `/owner/staff/${staffId}/kpi-details/export?format=pdf&period=${period}`;
                 filename = `Staff-KPI-${period}.pdf`;
-                
-                console.log("📤 LAYOUT PDF EXPORT REQUEST:");
-                console.log("  - Staff ID:", staffId);
-                console.log("  - Format: pdf");
-                console.log("  - Period:", period);
-                console.log("  - Month:", month);
-                console.log("  - Year:", year);
-                console.log("  - Full URL:", endpoint);
             } else if (reportType === "attendance") {
-                endpoint = `/owner/attendance-report/export?format=pdf&month=${
-                    new Date().getMonth() + 1
-                }&year=${new Date().getFullYear()}`;
-                filename = `Attendance-Report-${period}.pdf`;
+                const searchParams = new URLSearchParams(location.search);
+                const monthParam = searchParams.get("month");
+                const year = searchParams.get("year") || new Date().getFullYear().toString();
+                
+                // Convert month from 0-based to 1-based (same logic as attendanceReport.tsx)
+                const month = monthParam === "all"
+                    ? "all"
+                    : Number(monthParam) === 12
+                        ? "1"
+                        : String(Number(monthParam) + 1);
+                
+                const params = new URLSearchParams({
+                    format: "pdf"
+                });
+                
+                if (month) {
+                    params.append("month", month);
+                }
+                if (year) {
+                    params.append("year", year);
+                }
+                
+                endpoint = `/owner/attendance-report/export?${params.toString()}`;
+                filename = `Attendance-Report-${month === "all" ? "All-Months" : `Month-${month}`}.pdf`;
             } else if (reportType === "sales") {
-                endpoint = `/owner/sales-report/export?format=pdf&month=${
-                    new Date().getMonth() + 1
-                }&year=${new Date().getFullYear()}`;
-                filename = `Sales-Report-${period}.pdf`;
+                // Check if it's staff sales page
+                if (isStaffSalesPage && staffId) {
+                    const searchParams = new URLSearchParams(location.search);
+                    const monthParam = searchParams.get("month");
+                    const yearParam = searchParams.get("year");
+                    const startParam = searchParams.get("start") || searchParams.get("startDate");
+                    const endParam = searchParams.get("end") || searchParams.get("endDate");
+                    
+                    const params = new URLSearchParams({ format: "pdf" });
+                    
+                    if (monthParam === "all") {
+                        if (yearParam) params.append("year", yearParam);
+                        endpoint = `/owner/staff/${staffId}/all-months-sales-report/export?${params.toString()}`;
+                        filename = `Staff-Sales-All-Months.pdf`;
+                    } else if (monthParam) {
+                        params.append("month", monthParam);
+                        if (yearParam) params.append("year", yearParam);
+                        if (startParam) params.append("start", startParam);
+                        if (endParam) params.append("end", endParam);
+                        endpoint = `/owner/staff/${staffId}/sales-report/export?${params.toString()}`;
+                        const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                        const monthName = monthNames[parseInt(monthParam) - 1] || "Unknown";
+                        filename = `Staff-Sales-${monthName}.pdf`;
+                    } else {
+                        endpoint = `/owner/sales-report/export?format=pdf&month=${
+                            new Date().getMonth() + 1
+                        }&year=${new Date().getFullYear()}`;
+                        filename = `Sales-Report-${period}.pdf`;
+                    }
+                } else {
+                    endpoint = `/owner/sales-report/export?format=pdf&month=${
+                        new Date().getMonth() + 1
+                    }&year=${new Date().getFullYear()}`;
+                    filename = `Sales-Report-${period}.pdf`;
+                }
+            } else if (isFloorWiseWalkoutPage) {
+                const sp = new URLSearchParams(location.search);
+                const floorName = sp.get('floor') || '';
+                const monthParam = sp.get('month');
+                const startParam = sp.get('start') || sp.get('startDate');
+                const yearParam = sp.get('year');
+
+                console.log('📄 Export PDF - Floor-wise walkout:', {
+                    floorName,
+                    monthParam,
+                    startParam,
+                    yearParam
+                });
+
+                // Get floor ID from floor name
+                try {
+                    const floorsRes = await axiosInstance.get("/owner/getFloors");
+                    const floors = floorsRes.data.floors || [];
+                    const foundFloor = floors.find((f: any) => f.name === floorName);
+                    
+                    if (!foundFloor) {
+                        toast.error("Floor not found");
+                        return;
+                    }
+                    
+                    const floorId = foundFloor.id;
+                    console.log('✅ Found floor ID:', floorId, 'for floor:', floorName);
+
+                    const params = new URLSearchParams({ format: 'pdf' });
+                    params.append('floor', String(floorId));
+
+                    // Check if "all" months is selected
+                    if (monthParam === 'all') {
+                        const year = yearParam || String(new Date().getFullYear());
+                        params.append('year', year);
+                        endpoint = `/owner/all-months-floor-walkout-analysis/export?${params.toString()}`;
+                        filename = `Floor-${floorName || 'Report'}-All-Months-${year}.pdf`;
+                    } else if (startParam) {
+                        // Use startDate to send startDate and endDate parameters
+                        const endParam = sp.get('end') || sp.get('endDate');
+                        if (endParam) {
+                            params.append('startDate', startParam);
+                            params.append('endDate', endParam);
+                            // Also send month and year if available for correct display
+                            if (monthParam) {
+                                params.append('month', monthParam);
+                            }
+                            if (yearParam) {
+                                params.append('year', yearParam);
+                            }
+                            endpoint = `/owner/floor-walkout-analysis/export?${params.toString()}`;
+                            const startDate = new Date(startParam);
+                            const derivedMonth = startDate.getMonth() + 1;
+                            const derivedYear = startDate.getFullYear();
+                            filename = `Floor-${floorName || 'Report'}-Month-${derivedMonth}-${derivedYear}.pdf`;
+                        } else {
+                            // Fallback to current month/year if no endDate
+                            const now = new Date();
+                            const derivedMonth = now.getMonth() + 1;
+                            const derivedYear = String(now.getFullYear());
+                            params.append('month', String(derivedMonth));
+                            params.append('year', derivedYear);
+                            endpoint = `/owner/floor-walkout-analysis/export?${params.toString()}`;
+                            filename = `Floor-${floorName || 'Report'}-Month-${derivedMonth}-${derivedYear}.pdf`;
+                        }
+                    } else if (yearParam) {
+                        // Use yearParam if available
+                        const year = yearParam;
+                        params.append('year', year);
+                        // Also send month if available
+                        if (monthParam) {
+                            params.append('month', monthParam);
+                        }
+                        endpoint = `/owner/all-months-floor-walkout-analysis/export?${params.toString()}`;
+                        filename = `Floor-${floorName || 'Report'}-All-Months-${year}.pdf`;
+                    } else if (monthParam && yearParam) {
+                        // Send month and year parameters
+                        params.append('month', monthParam);
+                        params.append('year', yearParam);
+                        endpoint = `/owner/floor-walkout-analysis/export?${params.toString()}`;
+                        filename = `Floor-${floorName || 'Report'}-Month-${monthParam}-${yearParam}.pdf`;
+                    } else {
+                        // Default to current month/year
+                        const now = new Date();
+                        const derivedMonth = now.getMonth() + 1;
+                        const derivedYear = String(now.getFullYear());
+                        params.append('month', String(derivedMonth));
+                        params.append('year', derivedYear);
+                        endpoint = `/owner/floor-walkout-analysis/export?${params.toString()}`;
+                        filename = `Floor-${floorName || 'Report'}-Month-${derivedMonth}-${derivedYear}.pdf`;
+                    }
+
+                    console.log('📤 Sending PDF export request:', {
+                        endpoint,
+                        params: params.toString(),
+                        filename
+                    });
+                } catch (err: any) {
+                    console.error("Error fetching floor ID:", err);
+                    toast.error("Failed to get floor information");
+                    return;
+                }
             } else if (reportType === "walkout") {
-                endpoint = `/owner/walkout-report/export?format=pdf&month=${
-                    new Date().getMonth() + 1
-                }&year=${new Date().getFullYear()}`;
-                filename = `Walkout-Report-${period}.pdf`;
+                const sp = new URLSearchParams(location.search);
+                const monthParam = sp.get("month");
+                const startParam = sp.get("start") || sp.get("startDate");
+                const derivedMonth = startParam ? (new Date(startParam).getMonth() + 1) : (new Date().getMonth() + 1);
+                const month = monthParam === "all"
+                    ? "all"
+                    : monthParam !== null
+                        ? (Number(monthParam) === 12 ? 1 : Number(monthParam) + 1).toString()
+                        : String(derivedMonth);
+                const year = sp.get("year") || (startParam ? String(new Date(startParam).getFullYear()) : String(new Date().getFullYear()));
+                const params = new URLSearchParams({ format: "pdf" });
+                params.append("month", month);
+                if (year) params.append("year", year);
+                endpoint = `/owner/walkoutReport/export?${params.toString()}`;
+                filename = `Walkout-Report-${month === 'all' ? `All-${year}` : `M-${month}-${year}`}.pdf`;
             }
 
             if (endpoint) {
@@ -295,29 +595,40 @@ export function OwnerLayout() {
         } catch (err: any) {
             toast.error("Failed to download PDF");
         } finally {
-            setPdfLoading(false);
+            if (period === "week") {
+                setWeekPdfLoading(false);
+            } else if (period === "month") {
+                setMonthPdfLoading(false);
+            } else {
+                setPdfLoading(false);
+            }
         }
     };
 
     const handleExportExcel = async (period: string) => {
-        setExcelLoading(true);
+        if (period === "week") {
+            setWeekExcelLoading(true);
+        } else if (period === "month") {
+            setMonthExcelLoading(true);
+        } else {
+            setExcelLoading(true);
+        }
         try {
             const reportType = pathParts[3];
             const staffId = getStaffId();
-            const searchParams = new URLSearchParams(location.search);
-            const month = searchParams.get("month");
-            const year = searchParams.get("year");
-            const startDate = searchParams.get("start");
-            const endDate = searchParams.get("end");
-            
             let endpoint = "";
             let filename = "";
 
-            if (reportType === "staff" && staffId) {
-                // Build query parameters for staff export
+            if (isMainStaffReportsPage) {
+                // Handle main staff reports page - export all staff as table
+                const searchParams = new URLSearchParams(location.search);
+                const month = searchParams.get("month");
+                const year = searchParams.get("year");
+                const startDate = searchParams.get("start");
+                const endDate = searchParams.get("end");
+                
                 const params = new URLSearchParams({
-                    format: "excel",
-                    period: period
+                    format: "excel"
                 });
                 
                 if (month) params.append("month", month);
@@ -325,31 +636,159 @@ export function OwnerLayout() {
                 if (startDate) params.append("start", startDate);
                 if (endDate) params.append("end", endDate);
                 
-                endpoint = `/owner/staff/${staffId}/kpi-details/export?${params.toString()}`;
+                endpoint = `/owner/staffReport/export?${params.toString()}`;
+                filename = `Staff-Report.xlsx`;
+            } else if (reportType === "staff" && staffId) {
+                endpoint = `/owner/staff/${staffId}/kpi-details/export?format=excel&period=${period}`;
                 filename = `Staff-KPI-${period}.xlsx`;
-                
-                console.log("📤 LAYOUT EXCEL EXPORT REQUEST:");
-                console.log("  - Staff ID:", staffId);
-                console.log("  - Format: excel");
-                console.log("  - Period:", period);
-                console.log("  - Month:", month);
-                console.log("  - Year:", year);
-                console.log("  - Full URL:", endpoint);
             } else if (reportType === "attendance") {
-                endpoint = `/owner/attendance-report/export?format=excel&month=${
-                    new Date().getMonth() + 1
-                }&year=${new Date().getFullYear()}`;
-                filename = `Attendance-Report-${period}.xlsx`;
+                const searchParams = new URLSearchParams(location.search);
+                const monthParam = searchParams.get("month");
+                const year = searchParams.get("year") || new Date().getFullYear().toString();
+                
+                // Convert month from 0-based to 1-based (same logic as attendanceReport.tsx)
+                const month = monthParam === "all"
+                    ? "all"
+                    : Number(monthParam) === 12
+                        ? "1"
+                        : String(Number(monthParam) + 1);
+                
+                const params = new URLSearchParams({
+                    format: "excel"
+                });
+                
+                if (month) {
+                    params.append("month", month);
+                }
+                if (year) {
+                    params.append("year", year);
+                }
+                
+                endpoint = `/owner/attendance-report/export?${params.toString()}`;
+                filename = `Attendance-Report-${month === "all" ? "All-Months" : `Month-${month}`}.xlsx`;
             } else if (reportType === "sales") {
                 endpoint = `/owner/sales-report/export?format=excel&month=${
                     new Date().getMonth() + 1
                 }&year=${new Date().getFullYear()}`;
                 filename = `Sales-Report-${period}.xlsx`;
+            } else if (isFloorWiseWalkoutPage) {
+                const sp = new URLSearchParams(location.search);
+                const floorName = sp.get('floor') || '';
+                const monthParam = sp.get('month');
+                const startParam = sp.get('start') || sp.get('startDate');
+                const yearParam = sp.get('year');
+
+                console.log('📊 Export Excel - Floor-wise walkout:', {
+                    floorName,
+                    monthParam,
+                    startParam,
+                    yearParam
+                });
+
+                // Get floor ID from floor name
+                try {
+                    const floorsRes = await axiosInstance.get("/owner/getFloors");
+                    const floors = floorsRes.data.floors || [];
+                    const foundFloor = floors.find((f: any) => f.name === floorName);
+                    
+                    if (!foundFloor) {
+                        toast.error("Floor not found");
+                        return;
+                    }
+                    
+                    const floorId = foundFloor.id;
+                    console.log('✅ Found floor ID:', floorId, 'for floor:', floorName);
+
+                    const params = new URLSearchParams({ format: 'excel' });
+                    params.append('floor', String(floorId));
+                    
+                    // Check if "all" months is selected
+                    if (monthParam === 'all') {
+                        const year = yearParam || String(new Date().getFullYear());
+                        params.append('year', year);
+                        endpoint = `/owner/all-months-floor-walkout-analysis/export?${params.toString()}`;
+                        filename = `Floor-${floorName || 'Report'}-All-Months-${year}.xlsx`;
+                    } else if (startParam) {
+                        // Use startDate to send startDate and endDate parameters
+                        const endParam = sp.get('end') || sp.get('endDate');
+                        if (endParam) {
+                            params.append('startDate', startParam);
+                            params.append('endDate', endParam);
+                            // Also send month and year if available for correct display
+                            if (monthParam) {
+                                params.append('month', monthParam);
+                            }
+                            if (yearParam) {
+                                params.append('year', yearParam);
+                            }
+                            endpoint = `/owner/floor-walkout-analysis/export?${params.toString()}`;
+                            const startDate = new Date(startParam);
+                            const derivedMonth = startDate.getMonth() + 1;
+                            const derivedYear = startDate.getFullYear();
+                            filename = `Floor-${floorName || 'Report'}-Month-${derivedMonth}-${derivedYear}.xlsx`;
+                        } else {
+                            // Fallback to current month/year if no endDate
+                            const now = new Date();
+                            const derivedMonth = now.getMonth() + 1;
+                            const derivedYear = String(now.getFullYear());
+                            params.append('month', String(derivedMonth));
+                            params.append('year', derivedYear);
+                            endpoint = `/owner/floor-walkout-analysis/export?${params.toString()}`;
+                            filename = `Floor-${floorName || 'Report'}-Month-${derivedMonth}-${derivedYear}.xlsx`;
+                        }
+                    } else if (yearParam) {
+                        // Use yearParam if available
+                        const year = yearParam;
+                        params.append('year', year);
+                        // Also send month if available
+                        if (monthParam) {
+                            params.append('month', monthParam);
+                        }
+                        endpoint = `/owner/all-months-floor-walkout-analysis/export?${params.toString()}`;
+                        filename = `Floor-${floorName || 'Report'}-All-Months-${year}.xlsx`;
+                    } else if (monthParam && yearParam) {
+                        // Send month and year parameters
+                        params.append('month', monthParam);
+                        params.append('year', yearParam);
+                        endpoint = `/owner/floor-walkout-analysis/export?${params.toString()}`;
+                        filename = `Floor-${floorName || 'Report'}-Month-${monthParam}-${yearParam}.xlsx`;
+                    } else {
+                        // Default to current month/year
+                        const now = new Date();
+                        const derivedMonth = now.getMonth() + 1;
+                        const derivedYear = String(now.getFullYear());
+                        params.append('month', String(derivedMonth));
+                        params.append('year', derivedYear);
+                        endpoint = `/owner/floor-walkout-analysis/export?${params.toString()}`;
+                        filename = `Floor-${floorName || 'Report'}-Month-${derivedMonth}-${derivedYear}.xlsx`;
+                    }
+
+                    console.log('📤 Sending Excel export request:', {
+                        endpoint,
+                        params: params.toString(),
+                        filename
+                    });
+                } catch (err: any) {
+                    console.error("Error fetching floor ID:", err);
+                    toast.error("Failed to get floor information");
+                    return;
+                }
             } else if (reportType === "walkout") {
-                endpoint = `/owner/walkout-report/export?format=excel&month=${
-                    new Date().getMonth() + 1
-                }&year=${new Date().getFullYear()}`;
-                filename = `Walkout-Report-${period}.xlsx`;
+                const sp = new URLSearchParams(location.search);
+                const monthParam = sp.get("month");
+                const startParam = sp.get("start") || sp.get("startDate");
+                const derivedMonth = startParam ? (new Date(startParam).getMonth() + 1) : (new Date().getMonth() + 1);
+                const month = monthParam === "all"
+                    ? "all"
+                    : monthParam !== null
+                        ? (Number(monthParam) === 12 ? 1 : Number(monthParam) + 1).toString()
+                        : String(derivedMonth);
+                const year = sp.get("year") || (startParam ? String(new Date(startParam).getFullYear()) : String(new Date().getFullYear()));
+                const params = new URLSearchParams({ format: "excel" });
+                params.append("month", month);
+                if (year) params.append("year", year);
+                endpoint = `/owner/walkoutReport/export?${params.toString()}`;
+                filename = `Walkout-Report-${month === 'all' ? `All-${year}` : `M-${month}-${year}`}.xlsx`;
             }
 
             if (endpoint) {
@@ -365,7 +804,13 @@ export function OwnerLayout() {
         } catch (err: any) {
             toast.error("Failed to export Excel file");
         } finally {
-            setExcelLoading(false);
+            if (period === "week") {
+                setWeekExcelLoading(false);
+            } else if (period === "month") {
+                setMonthExcelLoading(false);
+            } else {
+                setExcelLoading(false);
+            }
         }
     };
 
@@ -400,8 +845,8 @@ export function OwnerLayout() {
             <header className="bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-sm sticky top-0 z-50">
                 <div className="p-4">
                     <div className="flex items-center justify-between">
-                        {isAnyReportPage ? (
-                            // Report Page Header (Staff, Attendance, Sales, Walkout)
+                        {isAnyReportPage || isFloorWiseWalkoutPage ? (
+                            // Report Page Header (Staff, Attendance, Sales, Walkout, Floor-wise Walkout)
                             <>
                                 <div className="flex items-center gap-3">
                                     <button
@@ -415,18 +860,31 @@ export function OwnerLayout() {
                                             {getReportTitle()}
                                         </h1>
                                         <p className="text-sm text-gray-500">
-                                            {getDateRange()}
+                                            {isFloorWiseWalkoutPage ? getDateRange() : getDateRange()}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <button
-                                        onClick={() => setModalOpen(true)}
-                                        className="p-2 rounded-full hover:bg-gray-100 transition"
-                                    >
-                                        <Download className="w-5 h-5 text-red-500" />
-                                    </button>
-                                </div>
+                                {/* Download button - enable for Staff Sales page; keep disabled for sales list root */}
+                                {!isWalkoutReportsPage && (!isSalesReportsPage || isStaffSalesPage) && (
+                                    <div className="text-right">
+                                        <button
+                                            onClick={() => setModalOpen(true)}
+                                            className="p-2 rounded-full hover:bg-gray-100 transition"
+                                        >
+                                            <Download className="w-5 h-5 text-red-500" />
+                                        </button>
+                                    </div>
+                                )}
+                                {/* {isWalkoutReportsPage && (
+                                    <div className="text-right">
+                                        <button
+                                            onClick={() => setModalOpen(true)}
+                                            className="p-2 rounded-full hover:bg-gray-100 transition"
+                                        >
+                                            <Download className="w-5 h-5 text-red-500" />
+                                        </button>
+                                    </div>
+                                )} */}
                             </>
                         ) : (
                             // Default Header
@@ -485,7 +943,7 @@ export function OwnerLayout() {
 
             {/* Export Modal */}
             <AnimatePresence>
-                {modalOpen && isAnyReportPage && (
+                {modalOpen && (isAnyReportPage || isFloorWiseWalkoutPage || isStaffSalesPage) && !isWalkoutReportsPage && (!isSalesReportsPage || isStaffSalesPage) && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -508,7 +966,7 @@ export function OwnerLayout() {
                             {/* Header */}
                             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                                 <h2 className="text-lg font-semibold text-gray-900">
-                                    Export KPI Report
+                                    {isStaffSalesPage ? "Export Sales Report" : "Export KPI Report"}
                                 </h2>
                                 <button
                                     onClick={() => setModalOpen(false)}
@@ -525,8 +983,8 @@ export function OwnerLayout() {
                                     Choose export period:
                                 </p>
 
-                                {getMonthParam() === "all" ? (
-                                    // When month is "all" - show only PDF and Excel options
+                                {getMonthParam() === "all" || isAttendanceReportsPage ? (
+                                    // When month is "all" OR it's attendance report page - show only PDF and Excel options
                                     <>
                                         {/* Export as PDF */}
                                         <button
@@ -559,153 +1017,198 @@ export function OwnerLayout() {
                                                 <div className="font-semibold text-gray-900">
                                                     {pdfLoading
                                                         ? "Preparing PDF…"
-                                                        : "Export as PDF"}
+                                                        : isStaffSalesPage && getMonthParam() === "all"
+                                                            ? getStaffSalesExportDisplay().title + " as PDF"
+                                                        : isStaffSalesPage && getMonthParam()
+                                                            ? getStaffSalesExportDisplay().title + " as PDF"
+                                                        : isFloorWiseWalkoutPage && getMonthParam() === "all"
+                                                            ? "Export All Months as PDF"
+                                                            : isMainStaffReportsPage 
+                                                            ? "Export Employee as PDF"
+                                                            : isAttendanceReportsPage && getMonthParam() !== "all"
+                                                            ? "Export This Month as PDF"
+                                                            : "Export as PDF"}
                                                 </div>
                                                 <div className="text-xs text-gray-500">
-                                                    All months data
+                                                    {isStaffSalesPage && getMonthParam() === "all"
+                                                        ? getStaffSalesExportDisplay().subtitle
+                                                        : isStaffSalesPage && getMonthParam()
+                                                        ? getStaffSalesExportDisplay().subtitle
+                                                        : isFloorWiseWalkoutPage && getMonthParam() === "all"
+                                                        ? getFloorWiseExportDisplay().subtitle
+                                                        : isMainStaffReportsPage 
+                                                        ? "All employees data"
+                                                        : isAttendanceReportsPage && getMonthParam() !== "all"
+                                                        ? "Current month data"
+                                                        : "All months data"}
                                                 </div>
                                             </div>
                                         </button>
 
-                                        {/* Export as Excel */}
-                                        <button
-                                            onClick={() => handleExportExcel("month")}
-                                            disabled={excelLoading}
-                                            className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
-                      ${
-                          excelLoading
-                              ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
-                              : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
-                      }`}
-                                        >
-                                            <div
-                                                className={`p-2 rounded-lg ${
-                                                    excelLoading
-                                                        ? "bg-gray-200"
-                                                        : "bg-green-100"
-                                                }`}
+                                        {/* Export as Excel - allow on StaffSales page when month is all */}
+                                        {(
+                                            true
+                                        ) && (
+                                            <button
+                                                onClick={() => handleExportExcel("month")}
+                                                disabled={excelLoading}
+                                                className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                          ${
+                              excelLoading
+                                  ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
+                                  : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
+                          }`}
                                             >
-                                                {excelLoading ? (
-                                                    <div className="w-5 h-5 flex items-center justify-center">
-                                                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                                    </div>
-                                                ) : (
-                                                    <Sheet className="w-5 h-5 text-green-600" />
-                                                )}
-                                            </div>
+                                                <div
+                                                    className={`p-2 rounded-lg ${
+                                                        excelLoading
+                                                            ? "bg-gray-200"
+                                                            : "bg-green-100"
+                                                    }`}
+                                                >
+                                                    {excelLoading ? (
+                                                        <div className="w-5 h-5 flex items-center justify-center">
+                                                            <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                        </div>
+                                                    ) : (
+                                                        <Sheet className="w-5 h-5 text-green-600" />
+                                                    )}
+                                                </div>
 
-                                            <div className="text-left">
-                                                <div className="font-semibold text-gray-900">
-                                                    {excelLoading
-                                                        ? "Preparing Excel…"
-                                                        : "Export as Excel"}
+                                                    <div className="text-left">
+                                                    <div className="font-semibold text-gray-900">
+                                                        {excelLoading
+                                                            ? "Preparing Excel…"
+                                                            : isStaffSalesPage && getMonthParam() === "all"
+                                                                ? getStaffSalesExportDisplay().title + " as Excel"
+                                                                : isFloorWiseWalkoutPage && getMonthParam() === "all"
+                                                                    ? "Export All Months as Excel"
+                                                                    : isMainStaffReportsPage 
+                                                                    ? "Export Employee as Excel"
+                                                                    : isAttendanceReportsPage && getMonthParam() !== "all"
+                                                                    ? "Export This Month as Excel"
+                                                                    : "Export as Excel"}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {isStaffSalesPage && getMonthParam() === "all"
+                                                            ? getStaffSalesExportDisplay().subtitle
+                                                            : isFloorWiseWalkoutPage && getMonthParam() === "all"
+                                                                ? getFloorWiseExportDisplay().subtitle
+                                                                : isMainStaffReportsPage 
+                                                                ? "All employees data"
+                                                                : isAttendanceReportsPage && getMonthParam() !== "all"
+                                                                ? "Current month data"
+                                                                : "All months data"}
+                                                    </div>
                                                 </div>
-                                                <div className="text-xs text-gray-500">
-                                                    All months data
-                                                </div>
-                                            </div>
-                                        </button>
+                                            </button>
+                                        )}
                                     </>
                                 ) : (
-                                    // When month is specific - show week and month options
+                                    // When month is specific (and NOT attendance report) - show options
                                     <>
-                                        {/* This Week PDF */}
-                                        <button
-                                            onClick={() => handleExportPDF("week")}
-                                            disabled={pdfLoading}
-                                            className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                                        {/* Only show WEEK options if not on walkout pages or staff sales page */}
+                                        {!(isWalkoutReportsPage || isFloorWiseWalkoutPage || isStaffSalesPage) && (
+                                            <>
+                                                {/* This Week PDF */}
+                                                <button
+                                                    onClick={() => handleExportPDF("week")}
+                                                    disabled={weekPdfLoading}
+                                                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
                       ${
-                          pdfLoading
+                          weekPdfLoading
                               ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
                               : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
                       }`}
-                                        >
-                                            <div
-                                                className={`p-2 rounded-lg ${
-                                                    pdfLoading
-                                                        ? "bg-gray-200"
-                                                        : "bg-red-100"
-                                                }`}
-                                            >
-                                                {pdfLoading ? (
-                                                    <div className="w-5 h-5 flex items-center justify-center">
-                                                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                >
+                                                    <div
+                                                        className={`p-2 rounded-lg ${
+                                                            weekPdfLoading
+                                                                ? "bg-gray-200"
+                                                                : "bg-red-100"
+                                                        }`}
+                                                    >
+                                                        {weekPdfLoading ? (
+                                                            <div className="w-5 h-5 flex items-center justify-center">
+                                                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                            </div>
+                                                        ) : (
+                                                            <FileText className="w-5 h-5 text-red-600" />
+                                                        )}
                                                     </div>
-                                                ) : (
-                                                    <FileText className="w-5 h-5 text-red-600" />
-                                                )}
-                                            </div>
 
-                                            <div className="text-left">
-                                                <div className="font-semibold text-gray-900">
-                                                    {pdfLoading
-                                                        ? "Preparing PDF…"
-                                                        : "Export This Week as PDF"}
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                    Last 7 days
-                                                </div>
-                                            </div>
-                                        </button>
+                                                    <div className="text-left">
+                                                        <div className="font-semibold text-gray-900">
+                                                            {weekPdfLoading
+                                                                ? "Preparing PDF…"
+                                                                : "Export This Week as PDF"}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500">
+                                                            Last 7 days
+                                                        </div>
+                                                    </div>
+                                                </button>
 
-                                        {/* This Week Excel */}
-                                        <button
-                                            onClick={() => handleExportExcel("week")}
-                                            disabled={excelLoading}
-                                            className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                                                {/* This Week Excel */}
+                                                <button
+                                                    onClick={() => handleExportExcel("week")}
+                                                    disabled={weekExcelLoading}
+                                                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
                       ${
-                          excelLoading
+                          weekExcelLoading
                               ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
                               : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
                       }`}
-                                        >
-                                            <div
-                                                className={`p-2 rounded-lg ${
-                                                    excelLoading
-                                                        ? "bg-gray-200"
-                                                        : "bg-green-100"
-                                                }`}
-                                            >
-                                                {excelLoading ? (
-                                                    <div className="w-5 h-5 flex items-center justify-center">
-                                                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                >
+                                                    <div
+                                                        className={`p-2 rounded-lg ${
+                                                            weekExcelLoading
+                                                                ? "bg-gray-200"
+                                                                : "bg-green-100"
+                                                        }`}
+                                                    >
+                                                        {weekExcelLoading ? (
+                                                            <div className="w-5 h-5 flex items-center justify-center">
+                                                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                            </div>
+                                                        ) : (
+                                                            <Sheet className="w-5 h-5 text-green-600" />
+                                                        )}
                                                     </div>
-                                                ) : (
-                                                    <Sheet className="w-5 h-5 text-green-600" />
-                                                )}
-                                            </div>
 
-                                            <div className="text-left">
-                                                <div className="font-semibold text-gray-900">
-                                                    {excelLoading
-                                                        ? "Preparing Excel…"
-                                                        : "Export This Week as Excel"}
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                    Last 7 days
-                                                </div>
-                                            </div>
-                                        </button>
+                                                    <div className="text-left">
+                                                        <div className="font-semibold text-gray-900">
+                                                            {weekExcelLoading
+                                                                ? "Preparing Excel…"
+                                                                : "Export This Week as Excel"}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500">
+                                                            Last 7 days
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            </>
+                                        )}
 
                                         {/* This Month PDF */}
                                         <button
                                             onClick={() => handleExportPDF("month")}
-                                            disabled={pdfLoading}
+                                            disabled={monthPdfLoading}
                                             className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
                       ${
-                          pdfLoading
+                          monthPdfLoading
                               ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
                               : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
                       }`}
                                         >
                                             <div
                                                 className={`p-2 rounded-lg ${
-                                                    pdfLoading
+                                                    monthPdfLoading
                                                         ? "bg-gray-200"
                                                         : "bg-red-100"
                                                 }`}
                                             >
-                                                {pdfLoading ? (
+                                                {monthPdfLoading ? (
                                                     <div className="w-5 h-5 flex items-center justify-center">
                                                         <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                                                     </div>
@@ -716,54 +1219,72 @@ export function OwnerLayout() {
 
                                             <div className="text-left">
                                                 <div className="font-semibold text-gray-900">
-                                                    {pdfLoading
+                                                    {monthPdfLoading
                                                         ? "Preparing PDF…"
-                                                        : "Export This Month as PDF"}
+                                                        : isStaffSalesPage && getMonthParam()
+                                                            ? getStaffSalesExportDisplay().title + " as PDF"
+                                                        : isFloorWiseWalkoutPage
+                                                            ? getFloorWiseExportDisplay().title + " as PDF"
+                                                            : "Export This Month as PDF"}
                                                 </div>
                                                 <div className="text-xs text-gray-500">
-                                                    Current month
+                                                    {isStaffSalesPage && getMonthParam()
+                                                        ? getStaffSalesExportDisplay().subtitle
+                                                        : isFloorWiseWalkoutPage
+                                                        ? getFloorWiseExportDisplay().subtitle
+                                                        : "Current month"}
                                                 </div>
                                             </div>
                                         </button>
 
-                                        {/* This Month Excel */}
-                                        <button
-                                            onClick={() => handleExportExcel("month")}
-                                            disabled={excelLoading}
-                                            className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
-                      ${
-                          excelLoading
-                              ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
-                              : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
-                      }`}
-                                        >
-                                            <div
-                                                className={`p-2 rounded-lg ${
-                                                    excelLoading
-                                                        ? "bg-gray-200"
-                                                        : "bg-green-100"
-                                                }`}
+                                        {/* This Month Excel - show on StaffSales page */}
+                                        {(
+                                            <button
+                                                onClick={() => handleExportExcel("month")}
+                                                disabled={monthExcelLoading}
+                                                className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
+                          ${
+                              monthExcelLoading
+                                  ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
+                                  : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
+                          }`}
                                             >
-                                                {excelLoading ? (
-                                                    <div className="w-5 h-5 flex items-center justify-center">
-                                                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                                    </div>
-                                                ) : (
-                                                    <Sheet className="w-5 h-5 text-green-600" />
-                                                )}
-                                            </div>
+                                                <div
+                                                    className={`p-2 rounded-lg ${
+                                                        monthExcelLoading
+                                                            ? "bg-gray-200"
+                                                            : "bg-green-100"
+                                                    }`}
+                                                >
+                                                    {monthExcelLoading ? (
+                                                        <div className="w-5 h-5 flex items-center justify-center">
+                                                            <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                        </div>
+                                                    ) : (
+                                                        <Sheet className="w-5 h-5 text-green-600" />
+                                                    )}
+                                                </div>
 
-                                            <div className="text-left">
-                                                <div className="font-semibold text-gray-900">
-                                                    {excelLoading
-                                                        ? "Preparing Excel…"
-                                                        : "Export This Month as Excel"}
+                                                <div className="text-left">
+                                                    <div className="font-semibold text-gray-900">
+                                                        {monthExcelLoading
+                                                            ? "Preparing Excel…"
+                                                            : isStaffSalesPage && getMonthParam()
+                                                                ? getStaffSalesExportDisplay().title + " as Excel"
+                                                                : isFloorWiseWalkoutPage
+                                                                ? getFloorWiseExportDisplay().title + " as Excel"
+                                                                : "Export This Month as Excel"}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {isStaffSalesPage && getMonthParam()
+                                                            ? getStaffSalesExportDisplay().subtitle
+                                                            : isFloorWiseWalkoutPage
+                                                            ? getFloorWiseExportDisplay().subtitle
+                                                            : "Current month"}
+                                                    </div>
                                                 </div>
-                                                <div className="text-xs text-gray-500">
-                                                    Current month
-                                                </div>
-                                            </div>
-                                        </button>
+                                            </button>
+                                        )}
                                     </>
                                 )}
                             </div>

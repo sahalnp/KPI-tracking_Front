@@ -205,7 +205,14 @@ export default function SupervisorAttendanceReportPage() {
             Attendance Report
           </h1>
           <p className="text-sm text-gray-600">
-            {months[selectedMonth]} {selectedYear}
+            {(() => {
+              const year = selectedYear;
+              const month = selectedMonth;
+              const lastDay = new Date(year, month + 1, 0).getDate();
+              const monthName = months[month];
+              
+              return `1st - ${lastDay}${lastDay === 31 ? 'st' : 'th'} ${monthName} ${year}`;
+            })()}
           </p>
         </div>
 
@@ -253,7 +260,14 @@ export default function SupervisorAttendanceReportPage() {
 
           <h3 className="text-xl font-medium mb-2">No Attendance Found</h3>
           <p className="text-muted-foreground text-center max-w-md">
-            No attendance data available for {months[selectedMonth]} {selectedYear}.
+            No attendance data available for {(() => {
+              const year = selectedYear;
+              const month = selectedMonth;
+              const lastDay = new Date(year, month + 1, 0).getDate();
+              const monthName = months[month];
+              
+              return `1st - ${lastDay}${lastDay === 31 ? 'st' : 'th'} ${monthName} ${year}`;
+            })()}.
           </p>
         </motion.div>
       )}
@@ -268,7 +282,16 @@ export default function SupervisorAttendanceReportPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold">Attendance Overview</h2>
-              <p className="text-blue-100">{months[selectedMonth]} {selectedYear}</p>
+              <p className="text-blue-100">
+                {(() => {
+                  const year = selectedYear;
+                  const month = selectedMonth;
+                  const lastDay = new Date(year, month + 1, 0).getDate();
+                  const monthName = months[month];
+                  
+                  return `1st - ${lastDay}${lastDay === 31 ? 'st' : 'th'} ${monthName} ${year}`;
+                })()}
+              </p>
             </div>
             <CalendarDays className="w-12 h-12 text-blue-200" />
           </div>
@@ -539,7 +562,14 @@ export default function SupervisorAttendanceReportPage() {
               </button>
             </div>
             <p className="text-blue-100 text-sm mt-1">
-              {months[selectedMonth]} {selectedYear} • {attendance.length} records
+              {(() => {
+                const year = selectedYear;
+                const month = selectedMonth;
+                const lastDay = new Date(year, month + 1, 0).getDate();
+                const monthName = months[month];
+                
+                return `1st - ${lastDay}${lastDay === 31 ? 'st' : 'th'} ${monthName} ${year}`;
+              })()} • {attendance.length} records
             </p>
           </div>
           

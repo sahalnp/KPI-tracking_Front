@@ -221,7 +221,14 @@ export default function SupervisorSalesReportPage() {
       Sales Report
     </h1>
     <p className="text-sm text-gray-600">
-      {months[selectedMonth]} {selectedYear}
+      {(() => {
+        const year = selectedYear;
+        const month = selectedMonth;
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const monthName = months[month];
+        
+        return `1st - ${lastDay}${lastDay === 31 ? 'st' : 'th'} ${monthName} ${year}`;
+      })()}
     </p>
   </div>
 
@@ -281,7 +288,14 @@ export default function SupervisorSalesReportPage() {
 
     <h3 className="text-xl font-medium mb-2">No Sales Found</h3>
     <p className="text-muted-foreground text-center max-w-md">
-      No sales data available for {months[selectedMonth]} {selectedYear}.
+      No sales data available for {(() => {
+        const year = selectedYear;
+        const month = selectedMonth;
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const monthName = months[month];
+        
+        return `1st - ${lastDay}${lastDay === 31 ? 'st' : 'th'} ${monthName} ${year}`;
+      })()}.
     </p>
   </motion.div>
 )}
@@ -299,7 +313,14 @@ export default function SupervisorSalesReportPage() {
           </div>
           <h3 className="text-xl font-medium mb-2">No Sales Found</h3>
           <p className="text-muted-foreground text-center max-w-md">
-            No sales data available for {months[selectedMonth]} {selectedYear}.
+            No sales data available for {(() => {
+        const year = selectedYear;
+        const month = selectedMonth;
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const monthName = months[month];
+        
+        return `1st - ${lastDay}${lastDay === 31 ? 'st' : 'th'} ${monthName} ${year}`;
+      })()}.
           </p> */}
         {/* <Button
   className="mt-6 bg-red-500 hover:bg-red-600 text-white font-medium px-4 py-2 rounded-md flex items-center"
@@ -374,7 +395,14 @@ export default function SupervisorSalesReportPage() {
                     </Badge>
                   </div>
                   <CardTitle className="text-lg">{sale.staffName}</CardTitle>
-                  <CardDescription>Month: {months[selectedMonth]} {selectedYear}</CardDescription>
+                  <CardDescription>Month: {(() => {
+        const year = selectedYear;
+        const month = selectedMonth;
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const monthName = months[month];
+        
+        return `1st - ${lastDay}${lastDay === 31 ? 'st' : 'th'} ${monthName} ${year}`;
+      })()}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Sales Amount - Primary */}
@@ -432,7 +460,14 @@ export default function SupervisorSalesReportPage() {
           <CardHeader>
             <CardTitle className="text-white">Summary</CardTitle>
             <CardDescription className="text-white/80">
-              Total for {months[selectedMonth]} {selectedYear}
+              Total for {(() => {
+        const year = selectedYear;
+        const month = selectedMonth;
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const monthName = months[month];
+        
+        return `1st - ${lastDay}${lastDay === 31 ? 'st' : 'th'} ${monthName} ${year}`;
+      })()}
             </CardDescription>
           </CardHeader>
           <CardContent>

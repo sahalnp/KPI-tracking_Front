@@ -255,15 +255,18 @@ export function OwnerReport() {
                                                 navigate(`${report.route}?start=${fmt(start)}&end=${fmt(end)}&month=all&year=${selectedYear}`);
                                             } else {
                                                 // Specific month selected
-                                                const monthIndex = selectedMonth - 1; // Convert to 0-based month index (selectedMonth is 1-based due to "All Month" at index 0)
-                                                const startOfMonth = new Date(selectedYear, monthIndex, 1);
-                                                const endOfMonth = new Date(selectedYear, monthIndex + 1, 0);
+                                                // selectedMonth is 1-based (October = 10)
+                                                // For Date constructor, need 0-based (October = 9)
+                                                const dateMonth = selectedMonth - 1;
+                                                const startOfMonth = new Date(selectedYear, dateMonth, 1);
+                                                const endOfMonth = new Date(selectedYear, dateMonth + 1, 0);
                                                 
                                                 const start = fmt(startOfMonth);
                                                 const end = fmt(endOfMonth);
 
+                                                // Pass 1-based month in URL (October = 10)
                                                 navigate(
-                                                    `${report.route}?start=${start}&end=${end}&month=${monthIndex}&year=${selectedYear}`
+                                                    `${report.route}?start=${start}&end=${end}&month=${selectedMonth}&year=${selectedYear}`
                                                 );
                                             }
                                         }}

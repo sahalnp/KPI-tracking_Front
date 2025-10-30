@@ -285,84 +285,37 @@ export const StaffReportView: React.FC = () => {
 
     const getDateRangeLabel = () => {
         if (startDate && endDate) {
-            const start = new Date(startDate).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-            });
-            const end = new Date(endDate).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-            });
-            return `${start} - ${end}`;
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            // Check if it's the same month
+            if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+                const year = start.getFullYear();
+                const month = start.getMonth();
+                const lastDay = new Date(year, month + 1, 0).getDate();
+                const monthName = start.toLocaleDateString("en-IN", { month: "short" });
+                
+                return `1st - ${lastDay}${lastDay === 31 ? 'st' : 'th'} ${monthName} ${year}`;
+            } else {
+                // Different months - show full range
+                const startFormatted = start.toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                });
+                const endFormatted = end.toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                });
+                return `${startFormatted} - ${endFormatted}`;
+            }
         }
         return "All Time";
     };
 
-    const handleExportPDF = async () => {
-        setPdfLoading(true); // <- start spinner
-        try {
-            const { data } = await axiosInstance.get(
-                `/owner/staffReport/export?format=pdf&start=${startDate}&end=${endDate}`,
-                { responseType: "blob" }
-            );
+   
 
-            const blob = new Blob([data], { type: "application/pdf" });
-            saveAs(blob, "Staff-Report.pdf");
-            toast.success("PDF download started");
-        } catch (err: any) {
-            if (err.response?.status === 401) {
-                const response: any = await logoutOwner();
-                if (response.success) {
-                    localStorage.removeItem("accessToken");
-                    localStorage.removeItem("refreshToken");
-                    dispatch(clearUser());
-                } else {
-                    console.error("Logout failed on backend");
-                }
-            }
-            toast.error("Failed to download PDF");
-        } finally {
-            setPdfLoading(false); // <- stop spinner
-        }
-    };
-
-    const handleExportExcel = async () => {
-        setModalOpen(false);
-        try {
-            const { data } = await axiosInstance.get(
-                `/owner/staffReport/export`,
-                {
-                    params: { start: startDate, end: endDate, format: "excel" },
-                    responseType: "blob", // important for file download
-                }
-            );
-
-            // Create a downloadable link
-            const fileName = `staff-report-${startDate}-${endDate}.xlsx`;
-            const url = window.URL.createObjectURL(data); // data is already a Blob
-            const link = document.createElement("a");
-            link.href = url;
-            link.setAttribute("download", fileName);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-        } catch (err: any) {
-            if (err.response?.status === 401) {
-                const response: any = await logoutOwner();
-                if (response.success) {
-                    localStorage.removeItem("accessToken");
-                    localStorage.removeItem("refreshToken");
-                    dispatch(clearUser());
-                } else {
-                    console.error("Logout failed on backend");
-                }
-            }
-            toast.error("Failed to export Excel file");
-        }
-    };
 
     if (currentView !== "staffReport") return null;
 
@@ -531,139 +484,7 @@ export const StaffReportView: React.FC = () => {
                 </div>
             )}
 
-            <AnimatePresence>
-                {modalOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-                        onClick={() => setModalOpen(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, y: 20 }}
-                            animate={{ scale: 1, y: 0 }}
-                            exit={{ scale: 0.95, y: 20 }}
-                            transition={{
-                                type: "spring",
-                                stiffness: 300,
-                                damping: 30,
-                            }}
-                            className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {/* Header */}
-                            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                                <h2 className="text-lg font-semibold text-gray-900">
-                                    Export Report
-                                </h2>
-                                <button
-                                    onClick={() => setModalOpen(false)}
-                                    aria-label="Close modal"
-                                    className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-
-                            {/* Body */}
-                            <div className="px-6 py-5 space-y-4">
-                                <p className="text-sm text-gray-600">
-                                    Choose a format:
-                                </p>
-
-                                {/* ----------  PDF BUTTON  ---------- */}
-                                <button
-                                    onClick={handleExportPDF}
-                                    disabled={pdfLoading}
-                                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
-              ${
-                  pdfLoading
-                      ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
-                      : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
-              }`}
-                                >
-                                    <div
-                                        className={`p-2 rounded-lg ${
-                                            pdfLoading
-                                                ? "bg-gray-200"
-                                                : "bg-red-100"
-                                        }`}
-                                    >
-                                        {pdfLoading ? (
-                                            <div className="w-5 h-5 flex items-center justify-center">
-                                                {/* tiny spinner */}
-                                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                            </div>
-                                        ) : (
-                                            <FileText className="w-5 h-5 text-red-600" />
-                                        )}
-                                    </div>
-
-                                    <div className="text-left">
-                                        <div className="font-semibold text-gray-900">
-                                            {pdfLoading
-                                                ? "Preparing PDF…"
-                                                : "Export as PDF"}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                            Portable Document
-                                        </div>
-                                    </div>
-                                </button>
-
-                                {/* ----------  EXCEL BUTTON  ---------- */}
-                                <button
-                                    onClick={handleExportExcel}
-                                    disabled={excelLoading}
-                                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-xl border transition-all duration-200 shadow-sm
-              ${
-                  excelLoading
-                      ? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
-                      : "bg-white border-gray-200 hover:bg-gray-50 active:scale-95"
-              }`}
-                                >
-                                    <div
-                                        className={`p-2 rounded-lg ${
-                                            excelLoading
-                                                ? "bg-gray-200"
-                                                : "bg-green-100"
-                                        }`}
-                                    >
-                                        {excelLoading ? (
-                                            <div className="w-5 h-5 flex items-center justify-center">
-                                                {/* tiny spinner */}
-                                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                            </div>
-                                        ) : (
-                                            <Sheet className="w-5 h-5 text-green-600" />
-                                        )}
-                                    </div>
-
-                                    <div className="text-left">
-                                        <div className="font-semibold text-gray-900">
-                                            {excelLoading
-                                                ? "Preparing Excel…"
-                                                : "Export as Excel"}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                            Spreadsheet (.xlsx)
-                                        </div>
-                                    </div>
-                                </button>
-                              
-                            </div>
-
-                            {/* Footer */}
-                            <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 rounded-b-3xl">
-                                <p className="text-xs text-gray-500 text-center">
-                                    Download will start automatically
-                                </p>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+           
         </div>
     );
 };

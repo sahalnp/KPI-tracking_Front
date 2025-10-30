@@ -488,103 +488,7 @@ export const StaffKPIDetails: React.FC = () => {
         }
     );
 
-    const handleExportPDF = async (period: string) => {
-        setPdfLoading(true);
-        try {
-            // Build query parameters
-            const params = new URLSearchParams({
-                format: "pdf",
-                period: period
-            });
-            
-            // Always add month and year parameters
-            if (month) {
-                params.append("month", month);
-            }
-            if (year) {
-                params.append("year", year);
-            }
-            if (startDate) {
-                params.append("start", startDate);
-            }
-            if (endDate) {
-                params.append("end", endDate);
-            }
-
-            console.log("📤 PDF EXPORT REQUEST:");
-            console.log("  - Staff ID:", id);
-            console.log("  - Format: pdf");
-            console.log("  - Period:", period);
-            console.log("  - Month:", month);
-            console.log("  - Year:", year);
-            console.log("  - Start Date:", startDate);
-            console.log("  - End Date:", endDate);
-            console.log("  - Full URL:", `/owner/staff/${id}/kpi-details/export?${params.toString()}`);
-
-            const { data } = await axiosInstance.get(
-                `/owner/staff/${id}/kpi-details/export?${params.toString()}`,
-                { responseType: "blob" }
-            );
-
-            const blob = new Blob([data], { type: "application/pdf" });
-            saveAs(blob, `Staff-KPI-${period}.pdf`);
-            toast.success("PDF download started");
-        } catch (err: any) {
-            toast.error("Failed to download PDF");
-        } finally {
-            setPdfLoading(false);
-        }
-    };
-
-    const handleExportExcel = async (period: string) => {
-        setExcelLoading(true);
-        try {
-            // Build query parameters
-            const params = new URLSearchParams({
-                format: "excel",
-                period: period
-            });
-            
-            // Always add month and year parameters
-            if (month) {
-                params.append("month", month);
-            }
-            if (year) {
-                params.append("year", year);
-            }
-            if (startDate) {
-                params.append("start", startDate);
-            }
-            if (endDate) {
-                params.append("end", endDate);
-            }
-
-            console.log("📤 EXCEL EXPORT REQUEST:");
-            console.log("  - Staff ID:", id);
-            console.log("  - Format: excel");
-            console.log("  - Period:", period);
-            console.log("  - Month:", month);
-            console.log("  - Year:", year);
-            console.log("  - Start Date:", startDate);
-            console.log("  - End Date:", endDate);
-            console.log("  - Full URL:", `/owner/staff/${id}/kpi-details/export?${params.toString()}`);
-
-            const { data } = await axiosInstance.get(
-                `/owner/staff/${id}/kpi-details/export?${params.toString()}`,
-                { responseType: "blob" }
-            );
-
-            const blob = new Blob([data], {
-                type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            });
-            saveAs(blob, `Staff-KPI-${period}.xlsx`);
-            toast.success("Excel download started");
-        } catch (err: any) {
-            toast.error("Failed to export Excel file");
-        } finally {
-            setExcelLoading(false);
-        }
-    };
+ 
 
     if (isLoading) {
         return <LoadingSpinner />;
@@ -692,62 +596,33 @@ export const StaffKPIDetails: React.FC = () => {
                     <div className="flex items-center gap-4 mb-4">
                         <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
                             <span className="text-gray-600 font-semibold text-xl">
-                                {staffInfo?.name?.charAt(0)?.toUpperCase() ||
-                                    "S"}
+                                {staffInfo?.name?.charAt(0)?.toUpperCase() || 'S'}
                             </span>
                         </div>
-                        <h3 className="text-xl font-semibold text-gray-900">
-                            {staffInfo?.name}
-                        </h3>
-                        <span
-                            className={`text-sm px-3 py-1 rounded-full font-medium ${
-                                staffInfo?.role === "Staff"
-                                    ? "bg-green-100 text-green-800"
-                                    : staffInfo?.role === "FloorSupervisor"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : staffInfo?.role === "Accountant"
-                                    ? "bg-purple-100 text-purple-800"
-                                    : staffInfo?.role === "Admin"
-                                    ? "bg-red-100 text-red-800"
-                                    : "bg-gray-100 text-gray-800"
-                            }`}
-                        >
-                            {staffInfo?.role || "Staff"}
+                        <h3 className="text-xl font-semibold text-gray-900">{staffInfo?.name}</h3>
+                        <span className={`text-sm px-3 py-1 rounded-full font-medium ${
+                            staffInfo?.role === 'Staff' ? 'bg-green-100 text-green-800' :
+                            staffInfo?.role === 'FloorSupervisor' ? 'bg-blue-100 text-blue-800' :
+                            staffInfo?.role === 'Accountant' ? 'bg-purple-100 text-purple-800' :
+                            staffInfo?.role === 'Admin' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                        }`}>
+                            {staffInfo?.role || 'Staff'}
                         </span>
                     </div>
 
-                    {/* Staff Information Table - Exact Match to Image */}
-                    <div className="overflow-x-auto">
-                        <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
-                            <thead className="bg-gray-100">
-                                <tr>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-800 border-b border-gray-300">No</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-800 border-b border-gray-300">Staff ID</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-800 border-b border-gray-300">Name</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-800 border-b border-gray-300">Mobile</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-800 border-b border-gray-300">Role</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-800 border-b border-gray-300">Section</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-800 border-b border-gray-300">Floor</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-800 border-b border-gray-300">Avg Score</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white">
-                                <tr className="hover:bg-gray-50">
-                                    <td className="px-4 py-3 text-gray-900 border-b border-gray-200">1</td>
-                                    <td className="px-4 py-3 text-gray-900 border-b border-gray-200">{staffInfo?.staffId || "N/A"}</td>
-                                    <td className="px-4 py-3 text-gray-900 border-b border-gray-200">{staffInfo?.name || "N/A"}</td>
-                                    <td className="px-4 py-3 text-gray-900 border-b border-gray-200">{staffInfo?.mobile || "N/A"}</td>
-                                    <td className="px-4 py-3 text-gray-900 border-b border-gray-200">{staffInfo?.role || "N/A"}</td>
-                                    <td className="px-4 py-3 text-gray-900 border-b border-gray-200">{staffInfo?.section || "N/A"}</td>
-                                    <td className="px-4 py-3 text-gray-900 border-b border-gray-200">
+                    {/* Second Line: ID | Floor-Section | Number */}
+                    <div className="text-sm text-gray-600">
+                        <span className="font-mono">ID: {staffInfo?.staffId}</span>
+                        <span className="mx-2">|</span>
+                        <span>
                             {typeof staffInfo?.floor === "string"
                                 ? staffInfo.floor
-                                            : staffInfo?.floor?.name || "N/A"}
-                                    </td>
-                                    <td className="px-4 py-3 text-gray-900 border-b border-gray-200">0</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                                : staffInfo?.floor?.name || "N/A"} Floor
+                            {staffInfo?.section && `-${staffInfo.section}`}
+                        </span>
+                        <span className="mx-2">|</span>
+                        <span>Number: {staffInfo?.mobile}</span>
                     </div>
                 </motion.div>
             )}

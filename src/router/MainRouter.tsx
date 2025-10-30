@@ -37,6 +37,8 @@ import { DailyKPIDetails } from "@/components/Owner/reports/DailyKPIDetails";
 import SalesReportPage from "@/components/Owner/reports/salesReport";
 import AttendanceReportPage from "@/components/Owner/reports/attendanceReport";
 import { WalkoutReportPage } from "@/components/Owner/reports/walkoutReport";
+import { FloorWiseWalkout } from "@/components/Owner/reports/floorWiseWalkout";
+import StaffSales from "@/components/Owner/reports/StaffSales";
 
 function MainRouter() {
     const router = createBrowserRouter([
@@ -83,7 +85,16 @@ function MainRouter() {
                         },
                                  {
                                     path: "sales",
-                                    element: <SalesReportPage />,
+                                    children: [
+                                        {
+                                            index: true,
+                                            element: <SalesReportPage />,
+                                        },
+                                        {
+                                            path: "staffSales/:id",
+                                            element: <StaffSales />,
+                                        },
+                                    ],
                                 },
                                  {
                                     path: "attendance",
@@ -92,6 +103,10 @@ function MainRouter() {
                                 {
                                     path: "walkout",
                                     element: <WalkoutReportPage />,
+                                },
+                                {
+                                    path: "walkout/floor-wise-walkout",
+                                    element: <FloorWiseWalkout />,
                                 },
                             ],
                         },

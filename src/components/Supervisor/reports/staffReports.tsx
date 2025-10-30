@@ -247,17 +247,31 @@ export const SupervisorStaffReportView: React.FC = () => {
 
     const getDateRangeLabel = () => {
         if (startDate && endDate) {
-            const start = new Date(startDate).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-            });
-            const end = new Date(endDate).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-            });
-            return `${start} - ${end}`;
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            // Check if it's the same month
+            if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+                const year = start.getFullYear();
+                const month = start.getMonth();
+                const lastDay = new Date(year, month + 1, 0).getDate();
+                const monthName = start.toLocaleDateString("en-IN", { month: "short" });
+                
+                return `1st - ${lastDay}${lastDay === 31 ? 'st' : 'th'} ${monthName} ${year}`;
+            } else {
+                // Different months - show full range
+                const startFormatted = start.toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                });
+                const endFormatted = end.toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                });
+                return `${startFormatted} - ${endFormatted}`;
+            }
         }
         return "All Time";
     };
